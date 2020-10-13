@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\zlzlf\\source\\repos\\CSharp\\CSharp\\CSharp.csproj": {}
+    "C:\\Users\\zlzlf\\source\\repos\\CSharp\\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\\CSharp\\CSharp.csproj": {}
   },
   "projects": {
-    "C:\\Users\\zlzlf\\source\\repos\\CSharp\\CSharp\\CSharp.csproj": {
+    "C:\\Users\\zlzlf\\source\\repos\\CSharp\\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\\CSharp\\CSharp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\zlzlf\\source\\repos\\CSharp\\CSharp\\CSharp.csproj",
+        "projectUniqueName": "C:\\Users\\zlzlf\\source\\repos\\CSharp\\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\\CSharp\\CSharp.csproj",
         "projectName": "CSharp",
-        "projectPath": "C:\\Users\\zlzlf\\source\\repos\\CSharp\\CSharp\\CSharp.csproj",
+        "projectPath": "C:\\Users\\zlzlf\\source\\repos\\CSharp\\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\\CSharp\\CSharp.csproj",
         "packagesPath": "C:\\Users\\zlzlf\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\zlzlf\\source\\repos\\CSharp\\CSharp\\obj\\",
+        "outputPath": "C:\\Users\\zlzlf\\source\\repos\\CSharp\\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\\CSharp\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\zlzlf\\AppData\\Roaming\\NuGet\\NuGet.Config",

@@ -2,7 +2,7 @@
 
 namespace CSharp
 {
-    class Program
+    class Part1_Section1
     {
         // 여기에 주석을 달 수 있어요.
         // 주석의 문법으로는 1. /* */ 2. //이 있다.
@@ -50,6 +50,7 @@ namespace CSharp
 
             // 캐릭터타입 2바이트
             char chartest = '가'; //한자, 한문, 영어 모두 상관없이 저장 가능. 딱 하나의 단어만 저장이 가능하다.
+           
             // 스트링타입 
             string str = "Hello, World \n";
             Console.WriteLine(str);
