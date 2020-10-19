@@ -15,6 +15,11 @@
     <Compile Remove="Part1_Section5_Monster.cs" />
     <Compile Remove="Part1_Section5_Player.cs" />
     <Compile Remove="Part1_Section5_Program.cs" />
+    <Compile Remove="Part1_Section6_1.Array.cs" />
+    <Compile Remove="Part1_Section6_2.Exercise.cs" />
+    <Compile Remove="Part1_Section6_3.MultipleArray.cs" />
+    <Compile Remove="Part1_Section6_4.List.cs" />
+    <Compile Remove="Part1_Section6_5.Dictionary.cs" />
     <Compile Remove="Part1_Section7_1.Generic.cs" />
     <Compile Remove="Part1_Section7_2.Interface.cs" />
     <Compile Remove="Part1_Section7_3.Property.cs" />
@@ -30,6 +35,11 @@
     <None Include="Part1_Section5_Monster.cs" />
     <None Include="Part1_Section5_Player.cs" />
     <None Include="Part1_Section5_Program.cs" />
+    <None Include="Part1_Section6_1.Array.cs" />
+    <None Include="Part1_Section6_2.Exercise.cs" />
+    <None Include="Part1_Section6_3.MultipleArray.cs" />
+    <None Include="Part1_Section6_4.List.cs" />
+    <None Include="Part1_Section6_5.Dictionary.cs" />
     <None Include="Part1_Section7_1.Generic.cs" />
     <None Include="Part1_Section7_2.Interface.cs" />
     <None Include="Part1_Section7_3.Property.cs" />
