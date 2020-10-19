@@ -10,9 +10,14 @@
     <Compile Remove="Part1_Section2.cs" />
     <Compile Remove="Part1_Section3.cs" />
     <Compile Remove="Part1_Section4.cs" />
-    <Compile Remove="Part1_Section7_1%28Generic%29.cs" />
-    <Compile Remove="Part1_Section7_2%28Interface%29.cs" />
-    <Compile Remove="Part1_Section7_3%28Property%29.cs" />
+    <Compile Remove="Part1_Section5_Creature.cs" />
+    <Compile Remove="Part1_Section5_Game.cs" />
+    <Compile Remove="Part1_Section5_Monster.cs" />
+    <Compile Remove="Part1_Section5_Player.cs" />
+    <Compile Remove="Part1_Section5_Program.cs" />
+    <Compile Remove="Part1_Section7_1.Generic.cs" />
+    <Compile Remove="Part1_Section7_2.Interface.cs" />
+    <Compile Remove="Part1_Section7_3.Property.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,9 +25,14 @@
     <None Include="Part1_Section2.cs" />
     <None Include="Part1_Section3.cs" />
     <None Include="Part1_Section4.cs" />
-    <None Include="Part1_Section7_1(Generic).cs" />
-    <None Include="Part1_Section7_2(Interface).cs" />
-    <None Include="Part1_Section7_3(Property).cs" />
+    <None Include="Part1_Section5_Creature.cs" />
+    <None Include="Part1_Section5_Game.cs" />
+    <None Include="Part1_Section5_Monster.cs" />
+    <None Include="Part1_Section5_Player.cs" />
+    <None Include="Part1_Section5_Program.cs" />
+    <None Include="Part1_Section7_1.Generic.cs" />
+    <None Include="Part1_Section7_2.Interface.cs" />
+    <None Include="Part1_Section7_3.Property.cs" />
   </ItemGroup>
 
 </Project>
