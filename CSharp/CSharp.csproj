@@ -23,6 +23,12 @@
     <Compile Remove="Part1_Section7_1.Generic.cs" />
     <Compile Remove="Part1_Section7_2.Interface.cs" />
     <Compile Remove="Part1_Section7_3.Property.cs" />
+    <Compile Remove="Part1_Section7_4.Delegate.cs" />
+    <Compile Remove="Part1_Section7_5.Event.cs" />
+    <Compile Remove="Part1_Section7_5.Event_InputManager.cs" />
+    <Compile Remove="Part1_Section7_6.Lamdba.cs" />
+    <Compile Remove="Part1_Section7_7.Exception.cs" />
+    <Compile Remove="Part1_Section7_8.Reflection.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,6 +49,12 @@
     <None Include="Part1_Section7_1.Generic.cs" />
     <None Include="Part1_Section7_2.Interface.cs" />
     <None Include="Part1_Section7_3.Property.cs" />
+    <None Include="Part1_Section7_4.Delegate.cs" />
+    <None Include="Part1_Section7_5.Event.cs" />
+    <None Include="Part1_Section7_5.Event_InputManager.cs" />
+    <None Include="Part1_Section7_6.Lamdba.cs" />
+    <None Include="Part1_Section7_7.Exception.cs" />
+    <None Include="Part1_Section7_8.Reflection.cs" />
   </ItemGroup>
 
 </Project>
