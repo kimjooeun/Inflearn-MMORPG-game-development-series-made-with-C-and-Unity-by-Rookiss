@@ -29,6 +29,7 @@
     <Compile Remove="Part1_Section7_6.Lamdba.cs" />
     <Compile Remove="Part1_Section7_7.Exception.cs" />
     <Compile Remove="Part1_Section7_8.Reflection.cs" />
+    <Compile Remove="Part1_Section7_9.Nullable.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,6 +56,7 @@
     <None Include="Part1_Section7_6.Lamdba.cs" />
     <None Include="Part1_Section7_7.Exception.cs" />
     <None Include="Part1_Section7_8.Reflection.cs" />
+    <None Include="Part1_Section7_9.Nullable.cs" />
   </ItemGroup>
 
 </Project>
