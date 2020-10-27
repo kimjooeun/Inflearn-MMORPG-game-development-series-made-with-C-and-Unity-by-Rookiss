@@ -30,6 +30,7 @@
     <Compile Remove="Part1_Section7_7.Exception.cs" />
     <Compile Remove="Part1_Section7_8.Reflection.cs" />
     <Compile Remove="Part1_Section7_9.Nullable.cs" />
+    <Compile Remove="Part2_Section0_1.Setting.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,6 +58,7 @@
     <None Include="Part1_Section7_7.Exception.cs" />
     <None Include="Part1_Section7_8.Reflection.cs" />
     <None Include="Part1_Section7_9.Nullable.cs" />
+    <None Include="Part2_Section0_1.Setting.cs" />
   </ItemGroup>
 
 </Project>
