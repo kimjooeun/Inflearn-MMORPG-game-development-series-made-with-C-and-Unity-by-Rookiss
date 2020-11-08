@@ -15,7 +15,7 @@ namespace CSharp
             const char CIRCLE = '\u25cf';
 
             int lastTick = 0;
-             while (true)
+            while (true)
             {
                 // 입력
                 // 사용자가 키보드나 마우스를 입력했을 때 감지하는 단계
