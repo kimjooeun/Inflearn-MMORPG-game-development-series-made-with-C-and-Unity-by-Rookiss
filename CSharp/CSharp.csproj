@@ -30,6 +30,8 @@
     <Compile Remove="Part1_Section7_7.Exception.cs" />
     <Compile Remove="Part1_Section7_8.Reflection.cs" />
     <Compile Remove="Part1_Section7_9.Nullable.cs" />
+    <Compile Remove="Part2_Section0_1.Setting.cs" />
+    <Compile Remove="Part2_Section1_1_1.Board(MultipleArray, ConectionList Pratice).cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,6 +59,8 @@
     <None Include="Part1_Section7_7.Exception.cs" />
     <None Include="Part1_Section7_8.Reflection.cs" />
     <None Include="Part1_Section7_9.Nullable.cs" />
+    <None Include="Part2_Section0_1.Setting.cs" />
+    <None Include="Part2_Section1_1_1.Board%28MultipleArray, ConectionList Pratice%29.cs" />
   </ItemGroup>
 
 </Project>
