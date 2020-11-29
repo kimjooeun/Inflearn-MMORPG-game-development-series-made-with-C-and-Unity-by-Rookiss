@@ -34,7 +34,8 @@
     <Compile Remove="Part2_Section1_1.Array_MultipleArray_ConectionList.cs" />
     <Compile Remove="Part2_Section1_1_1.Board(MultipleArray, ConectionList Pratice).cs" />
     <Compile Remove="Part2_Section2.MakeMap%28BynaryTree, SideWindder%29.cs" />
-    <Compile Remove="Part2_Section2.Player%28Right-hand_Rule%29.cs" />
+    <Compile Remove="Part2_Section2.Player%28Right-hand_Rule%29 And Implementation of Wayfinding using BFS.cs" />
+    <Compile Remove="Part2_Section3.StackAndQueue.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -66,7 +67,8 @@
     <None Include="Part2_Section1_1.Array_MultipleArray_ConectionList.cs" />
     <None Include="Part2_Section1_1_1.Board%28MultipleArray, ConectionList Pratice%29.cs" />
     <None Include="Part2_Section2.MakeMap(BynaryTree, SideWindder).cs" />
-    <None Include="Part2_Section2.Player(Right-hand_Rule).cs" />
+    <None Include="Part2_Section2.Player(Right-hand_Rule) And Implementation of Wayfinding using BFS.cs" />
+    <None Include="Part2_Section3.StackAndQueue.cs" />
   </ItemGroup>
 
 </Project>
