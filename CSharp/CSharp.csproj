@@ -39,30 +39,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Part1_Section1.cs" />
-    <None Include="Part1_Section2.cs" />
-    <None Include="Part1_Section3.cs" />
-    <None Include="Part1_Section4.cs" />
-    <None Include="Part1_Section5_Creature.cs" />
-    <None Include="Part1_Section5_Game.cs" />
-    <None Include="Part1_Section5_Monster.cs" />
-    <None Include="Part1_Section5_Player.cs" />
-    <None Include="Part1_Section5_Program.cs" />
-    <None Include="Part1_Section6_1.Array.cs" />
-    <None Include="Part1_Section6_2.Exercise.cs" />
-    <None Include="Part1_Section6_3.MultipleArray.cs" />
-    <None Include="Part1_Section6_4.List.cs" />
-    <None Include="Part1_Section6_5.Dictionary.cs" />
-    <None Include="Part1_Section7_1.Generic.cs" />
-    <None Include="Part1_Section7_2.Interface.cs" />
-    <None Include="Part1_Section7_3.Property.cs" />
-    <None Include="Part1_Section7_4.Delegate.cs" />
-    <None Include="Part1_Section7_5.Event.cs" />
-    <None Include="Part1_Section7_5.Event_InputManager.cs" />
-    <None Include="Part1_Section7_6.Lamdba.cs" />
-    <None Include="Part1_Section7_7.Exception.cs" />
-    <None Include="Part1_Section7_8.Reflection.cs" />
-    <None Include="Part1_Section7_9.Nullable.cs" />
     <None Include="Part2_Section0_1.Setting.cs" />
     <None Include="Part2_Section1_1.Array_MultipleArray_ConectionList.cs" />
     <None Include="Part2_Section1_1_1.Board%28MultipleArray, ConectionList Pratice%29.cs" />
