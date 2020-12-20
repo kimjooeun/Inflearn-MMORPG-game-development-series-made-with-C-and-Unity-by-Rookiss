@@ -59,7 +59,6 @@ namespace CSharp
     //    public MyLinkedListNode<T> Prev; // 이전방
     //}
 
-    
     /*
     class MyLinkedList<T>
     {
@@ -163,6 +162,7 @@ namespace CSharp
         public TileType[,] Tile; // 배열
         public int Size;
         
+        // 맵 상에서 갈 수 있는 공간과 벽을 구분하기 위한 것
         public enum TileType
         {
             Empty,
@@ -173,16 +173,16 @@ namespace CSharp
         {
             Tile = new TileType[size, size];
             Size = size;
-        
+
             for (int y = 0; y < Size; y++)
             {
                 for (int x = 0; x < Size; x++)
                 {
-                    if (x == 0 || x == Size - 1 || y == 0 || y == size - 1)
+                    if (x == 0 || x == Size - 1 || y == 0 || y == size - 1) // 외곽부분
                     {
                         Tile[y, x] = TileType.Wall;
                     }
-                    else
+                    else // 갈 수 있는 공간
                     {
                         Tile[y, x] = TileType.Empty;
                     }
@@ -205,8 +205,8 @@ namespace CSharp
             Console.ForegroundColor = prevColor;
         }
         
-        ConsoleColor GetTileColor(TileType type)
-        {
+        ConsoleColor GetTileColor(TileType type) // 콘솔 컬러를 설정하는 부분
+        { 
             switch (type)
             {
                 case TileType.Empty:

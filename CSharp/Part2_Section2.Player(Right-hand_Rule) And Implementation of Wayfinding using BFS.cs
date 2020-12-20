@@ -29,7 +29,7 @@ namespace CSharp
         int _dir = (int)Dir.Up;
         List<Pos> _points = new List<Pos>();
 
-        public void Intiallize(int posY, int posX, Part2_Section2MakeMap board)
+        public void Intiallize(int posY, int posX, Part2_Section2MakeMap board) // 초기 위치설정
         {
             PosX = posX;
             PosY = posY;
@@ -151,6 +151,7 @@ namespace CSharp
             {
                 _sumTick = 0;
 
+                // 여기에다가 0.1초마다 실행될 로직을 넣어준다.
                 PosY = _points[_lastIndex].Y;
                 PosX = _points[_lastIndex].X;
                 _lastIndex++;

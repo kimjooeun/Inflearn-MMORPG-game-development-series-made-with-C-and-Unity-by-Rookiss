@@ -13,7 +13,6 @@ namespace CSharp
         public int DestY { get; private set; }
         public int DestX { get; private set; }
 
-
         Part2_Section2_Player _player;
 
         public enum TileType
@@ -24,11 +23,10 @@ namespace CSharp
 
         public void Initialize(int size, Part2_Section2_Player player)
         {
-            if (size % 2 == 0)
+            if (size % 2 == 0) // 맵 크기가 짝수일 때에 바로 끝난다. (홀수만 가능)
             {
                 return;
             }
-
             _player = player;
 
             Tile = new TileType[size, size];
@@ -61,7 +59,6 @@ namespace CSharp
             }
 
             // 랜덤으로 우측 혹은 아래로 길을 뚫는 작업
-            // Binary Tree Algorizm
             Random rand = new Random();
             for (int y = 0; y < Size; y++)
             {
@@ -72,26 +69,26 @@ namespace CSharp
                     {
                         continue;
                     }
-                    if (y == Size - 2 && x == Size - 2)
+                    if (y == Size - 2 && x == Size - 2) 
                     {
                         continue;
                     }
-                    if (y == Size - 2)
+                    if (y == Size - 2) // 제일 외곽에 있는 것은 아래로만 가게 한다
                     {
                         Tile[y, x + 1] = TileType.Empty;
                         continue;
                     }
-                    if (x == Size - 2)
+                    if (x == Size - 2) // 제일 외곽에 있는 것들은 오른쪽으로 가게 한다
                     {
                         Tile[y + 1, x] = TileType.Empty;
                         continue;
                     }
-                    if (rand.Next(0, 2) == 0)
+                    if (rand.Next(0, 2) == 0) // 우측에 갈 때에
                     {
                         Tile[y, x + 1] = TileType.Empty;
                         count++;
                     }
-                    else
+                    else // 아래로 길을 뚫을 때에
                     {
                         int randomindex = rand.Next(0, count);
                         Tile[y + 1, x - randomindex * 2] = TileType.Empty;
@@ -130,30 +127,25 @@ namespace CSharp
                     {
                         continue;
                     }
-
                     if (y == Size - 2 && x == Size - 2)
                     {
                         continue;
                     }
-
-                    if (y == Size - 2)
+                    if (y == Size - 2) // 제일 외곽에 있는 것은 아래로만 가게 한다
                     {
                         Tile[y, x + 1] = TileType.Empty;
                         continue;
                     }
-
-                    if (x == Size - 2)
+                    if (x == Size - 2) // 제일 외곽에 있는 것들은 오른쪽으로 가게 한다
                     {
                         Tile[y + 1, x] = TileType.Empty;
                         continue;
                     }
-
-                    if (rand.Next(0, 2) == 0)
+                    if (rand.Next(0, 2) == 0) //우측으로 길을 뚫을 때
                     {
                         Tile[y, x + 1] = TileType.Empty;
                     }
-
-                    else
+                    else // 아래로 길을 뚫을 때
                     {
                         Tile[y + 1, x] = TileType.Empty;
                     }
