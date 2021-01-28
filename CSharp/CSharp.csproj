@@ -60,6 +60,8 @@
     <Compile Remove="Part2_Section2.MakeMap%28BynaryTree, SideWindder%29.cs" />
     <Compile Remove="Part2_Section2.Player%28Right-hand_Rule%29 And Implementation of Wayfinding using BFS.cs" />
     <Compile Remove="Part2_Section3.StackAndQueue.cs" />
+    <Compile Remove="Part2_Section4.Graph Create And DFS, BFS.cs" />
+    <Compile Remove="Part2_Section5_1.Practice implementing a tree.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -93,6 +95,8 @@
     <None Include="Part2_Section2.MakeMap(BynaryTree, SideWindder).cs" />
     <None Include="Part2_Section2.Player(Right-hand_Rule) And Implementation of Wayfinding using BFS.cs" />
     <None Include="Part2_Section3.StackAndQueue.cs" />
+    <None Include="Part2_Section4.Graph Create And DFS, BFS.cs" />
+    <None Include="Part2_Section5_1.Practice implementing a tree.cs" />
   </ItemGroup>
 
 </Project>

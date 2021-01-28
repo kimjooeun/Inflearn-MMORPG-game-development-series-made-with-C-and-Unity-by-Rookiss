@@ -19,6 +19,17 @@ namespace CSharp
             // 대각선을 기준으로 대칭이다.
         };
 
+        // 리스트 버전
+        List<int>[] adj2 = new List<int>[]
+        {
+            new List<int>() { 1, 3 },
+            new List<int>() { 0, 2, 3 },
+            new List<int>() { 1 },
+            new List<int>() { 0, 1, 4 },
+            new List<int>() { 3, 5 },
+            new List<int>() { 4 },
+        };
+
         public void Dijikstra(int start)
         {
             bool[] visited = new bool[6];
@@ -89,67 +100,55 @@ namespace CSharp
             }
         }
 
-        // 리스트 버전
-        List<int>[] adj2 = new List<int>[]
+        bool[] visited = new bool[6];
+        // 1) 우선 Now부터 방문하고 클리어 표시를 한 다음에
+        // 2) Now와 연결된 정점들을 하나씩 확인해서, [ 아직 미발견한(미방문 상태라면) ] 방문한다.
+        public void DFS(int now) // 행렬을 이용한 버전
         {
-            new List<int>() { 1, 3 },
-            new List<int>() { 0, 2, 3 },
-            new List<int>() { 1 },
-            new List<int>() { 0, 1, 4 },
-            new List<int>() { 3, 5 },
-            new List<int>() { 4 },
-        };
+            Console.WriteLine(now);
+            visited[now] = true; // 1) 우선 Now부터 방문하고 클리어 표시를 한 다음에
 
-        //bool[] visited = new bool[6];
-        //// 1) 우선 Now부터 방문하고 클리어 표시를 한 다음에
-        //// 2) Now와 연결된 정점들을 하나씩 확인해서, [ 아직 미발견한(미방문 상태라면) ] 방문한다.
-        //public void DFS(int now) // 행렬을 이용한 버전
-        //{
-        //    Console.WriteLine(now);
-        //    visited[now] = true; // 1) 우선 Now부터 방문하고 클리어 표시를 한 다음에
+            for (int next = 0; next < 6; next++)
+            {
+                if (adj[now, next] == 0) // 연결 되어 있지 않으면 스킵,
+                {
+                    continue;
+                }
+                if (visited[next]) // 이미 방문했으면 스킵,
+                {
+                    continue;
+                }
+                DFS(next);
+            }
+        }
 
-        //    for (int next = 0; next < 6; next++)
-        //    {
-        //        if (adj[now, next] == 0) // 연결 되어 있지 않으면 스킵,
-        //        {
-        //            continue;
-        //        }
-        //        if (visited[next]) // 이미 방문했으면 스킵,
-        //        {
-        //            continue;
-        //        }
-        //        DFS(next);
-        //    }
-        //}
+        public void DFS2(int now)
+        {
+            Console.WriteLine(now);
+            visited[now] = true; // 1) 우선 Now부터 방문하고 클리어 표시를 한 다음에
 
-        //public void DFS2(int now)
-        //{
-        //    Console.WriteLine(now);
-        //    visited[now] = true; // 1) 우선 Now부터 방문하고 클리어 표시를 한 다음에
+            foreach (int next in adj2[now]) // 연결 되어 있지 않으면 스킵,
+            {
+                if (visited[next]) // 이미 방문했으면 스킵,
+                {
+                    continue;
+                }
+                DFS2(next);
+            }
+        }
 
-        //    foreach (int next in adj2[now]) // 연결 되어 있지 않으면 스킵,
-        //    {
-        //        if (visited[next]) // 이미 방문했으면 스킵,
-        //        {
-        //            continue;
-        //        }
-        //        DFS2(next);
-        //    }
-        //}
+        public void SearchAll()
+        {
+            visited = new bool[6];
+            for (int now = 0; now < 6; now++)
+            {
+                if (visited[now] == false)
+                {
+                    DFS(now);
+                }
+            }
+        }
 
-        //public void SearchAll()
-        //{
-        //    visited = new bool[6];
-        //    for (int now = 0; now < 6; now++)
-        //    {
-        //        if(visited[now] == false)
-        //        {
-        //            DFS(now);
-        //        }
-        //    }
-        //}
-
-        
         public void BFS(int start) // 큐와 행렬을 이용한 BFS
         {
             bool[] found = new bool[6];
@@ -167,20 +166,20 @@ namespace CSharp
                 int now = q.Dequeue(); // 대기열에서 제일 오래 기다린 것을 가져온다
                 Console.WriteLine(now); // 디버깅 용도
 
-                for (int next = 0; next < 6; next ++ ) // 행렬이용
+                for (int next = 0; next < 6; next++) // 행렬이용
                 {
-                    if(adj[now, next] == 0) // 나랑 쟤랑 인접한 아이인가? (인접하지 않았으면 스킵)
+                    if (adj[now, next] == 0) // 나랑 쟤랑 인접한 아이인가? (인접하지 않았으면 스킵)
                     {
                         continue;
                     }
-                    if(found[next]) //인접하더라도 발견한 아이인가? (이미 발견한 애라면 스킵)
+                    if (found[next]) //인접하더라도 발견한 아이인가? (이미 발견한 애라면 스킵)
                     {
                         continue;
                     }
                     q.Enqueue(next);
                     found[next] = true;
                     parent[start] = now;
-                    distance[next] = distance[now]+1;
+                    distance[next] = distance[now] + 1;
                 }
             }
         }
@@ -205,7 +204,11 @@ namespace CSharp
             //DFS (Depth First Search 깊이 우선 탐색) -- 용감한 영웅과 비슷하다. -- 다양한 예시로 사용된다
             //BFS (Breadth First Search 너비 우선 탐색) -- 예약시스템과 비슷하다 -- 최단거리 추출용으만 사용된다.
             Graph graph = new Graph();
-            graph.BFS(0);
+            // graph.DFS(0);
+            // graph.DFS2(0);
+            // graph.SearchAll();
+            // graph.BFS(0);
+            graph.Dijikstra(0);
         }
     }
 }

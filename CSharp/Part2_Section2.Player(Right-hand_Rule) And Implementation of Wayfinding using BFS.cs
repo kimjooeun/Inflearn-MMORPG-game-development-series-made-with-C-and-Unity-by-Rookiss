@@ -4,13 +4,14 @@ using System.Text;
 
 namespace CSharp
 {
-    class Pos 
+    class Pos
     {
         public Pos(int y, int x) { Y = y; X = x; }
         public int Y;
         public int X;
-    
+
     }
+
     class Part2_Section2_Player
     {
         public int PosY { get; private set; }
@@ -20,10 +21,10 @@ namespace CSharp
 
         enum Dir
         {
-            Up = 0, 
+            Up = 0,
             Left = 1,
             Down = 2,
-            Right = 3, 
+            Right = 3,
         }
 
         int _dir = (int)Dir.Up;
@@ -65,7 +66,7 @@ namespace CSharp
                     int nextY = nowY + deltaY[i];
                     int nextX = nowX + deltaX[i];
 
-                    if (nextX < 0 || nextX >= _board.Size || nextY <0 || nextY >= _board.Size)
+                    if (nextX < 0 || nextX >= _board.Size || nextY < 0 || nextY >= _board.Size)
                     {
                         continue;
                     }
@@ -73,7 +74,7 @@ namespace CSharp
                     {
                         continue;
                     }
-                    if (found [nextY, nextX])
+                    if (found[nextY, nextX])
                     {
                         continue;
                     }
@@ -86,7 +87,7 @@ namespace CSharp
 
             int y = _board.DestY;
             int x = _board.DestX;
-            while(parent[y,x].Y != y || parent[y, x].X != x) 
+            while (parent[y, x].Y != y || parent[y, x].X != x)
             {
                 _points.Add(new Pos(y, x));
                 Pos pos = parent[y, x];
