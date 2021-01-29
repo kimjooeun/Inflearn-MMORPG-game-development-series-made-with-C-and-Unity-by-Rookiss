@@ -63,7 +63,6 @@ namespace CSharp
             {
                 PrintTree(child);
             }
-
         }
 
         // 5
@@ -83,7 +82,6 @@ namespace CSharp
                 // 위와 같은 의미이다
                 height = Math.Max(height, newHieght);
             }
-
             return height;
         }
 
@@ -94,7 +92,6 @@ namespace CSharp
             //PrintTree(root);
 
             Console.WriteLine(GetHeight(root));
-
         }
     }
 }

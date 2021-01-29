@@ -179,7 +179,6 @@ namespace CSharp
             }
             Console.ForegroundColor = prevColor;
         }
-
         ConsoleColor GetTileColor(TileType type)
         {
             switch(type)

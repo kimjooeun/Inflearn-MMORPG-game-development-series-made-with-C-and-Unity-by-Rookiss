@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -55,13 +55,10 @@
     <Compile Remove="Part1_Section7_8.Reflection.cs" />
     <Compile Remove="Part1_Section7_9.Nullable.cs" />
     <Compile Remove="Part2_Section0_1.Setting.cs" />
-    <Compile Remove="Part2_Section1_1.Array_MultipleArray_ConectionList.cs" />
-    <Compile Remove="Part2_Section1_1_1.Board(MultipleArray, ConectionList Pratice).cs" />
-    <Compile Remove="Part2_Section2.MakeMap%28BynaryTree, SideWindder%29.cs" />
-    <Compile Remove="Part2_Section2.Player%28Right-hand_Rule%29 And Implementation of Wayfinding using BFS.cs" />
     <Compile Remove="Part2_Section3.StackAndQueue.cs" />
     <Compile Remove="Part2_Section4.Graph Create And DFS, BFS.cs" />
     <Compile Remove="Part2_Section5_1.Practice implementing a tree.cs" />
+    <Compile Remove="Part2_Section5_2.Priority Queue, Finish.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -90,13 +87,10 @@
     <None Include="Part1\Part1_Section7_8.Reflection.cs" />
     <None Include="Part1\Part1_Section7_9.Nullable.cs" />
     <None Include="Part2_Section0_1.Setting.cs" />
-    <None Include="Part2_Section1_1.Array_MultipleArray_ConectionList.cs" />
-    <None Include="Part2_Section1_1_1.Board%28MultipleArray, ConectionList Pratice%29.cs" />
-    <None Include="Part2_Section2.MakeMap(BynaryTree, SideWindder).cs" />
-    <None Include="Part2_Section2.Player(Right-hand_Rule) And Implementation of Wayfinding using BFS.cs" />
     <None Include="Part2_Section3.StackAndQueue.cs" />
     <None Include="Part2_Section4.Graph Create And DFS, BFS.cs" />
     <None Include="Part2_Section5_1.Practice implementing a tree.cs" />
+    <None Include="Part2_Section5_2.Priority Queue, Finish.cs" />
   </ItemGroup>
 
 </Project>
