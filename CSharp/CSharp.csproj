@@ -86,11 +86,6 @@
     <None Include="Part1\Part1_Section7_7.Exception.cs" />
     <None Include="Part1\Part1_Section7_8.Reflection.cs" />
     <None Include="Part1\Part1_Section7_9.Nullable.cs" />
-    <None Include="Part2_Section0_1.Setting.cs" />
-    <None Include="Part2_Section3.StackAndQueue.cs" />
-    <None Include="Part2_Section4.Graph Create And DFS, BFS.cs" />
-    <None Include="Part2_Section5_1.Practice implementing a tree.cs" />
-    <None Include="Part2_Section5_2.Priority Queue, Finish.cs" />
   </ItemGroup>
 
 </Project>
