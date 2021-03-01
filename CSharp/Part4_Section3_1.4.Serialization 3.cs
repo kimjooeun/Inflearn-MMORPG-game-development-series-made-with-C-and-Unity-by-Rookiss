@@ -1,6 +1,4 @@
-﻿dummyclinet.program.cs
-
-using ServerCore;
+﻿using ServerCore;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -9,29 +7,134 @@ using System.Threading;
 
 namespace DummyClient
 {
-    class Packet
+
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // DNS (Domain Name System)
+            string host = Dns.GetHostName();
+            IPHostEntry ipHost = Dns.GetHostEntry(host);
+            IPAddress ipAddr = ipHost.AddressList[0];
+            IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
+
+            Connector connector = new Connector();
+
+            connector.Conncect(endPoint, () => { return new ServerSession(); });
+
+            while (true)
+            {
+                try
+                {
+
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+
+                Thread.Sleep(1000);
+            }
+        }
+    }
+}
+
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using ServerCore;
+
+namespace DummyClient
+{
+    public abstract class Packet
     {
         public ushort size;
         public ushort packetId;
+
+        public abstract ArraySegment<byte> Write();
+        public abstract void Read(ArraySegment<byte> s);
     }
 
-    class GameSession : Session
+    class PlayerInfoReq : Packet
+    {
+        public long playerId;
+        public string name;
+
+        public PlayerInfoReq()
+        {
+            this.packetId = (ushort)PacketID.PlayerInfoReq;
+        }
+
+        public override void Read(ArraySegment<byte> segment)
+        {
+            ushort count = 0;
+
+            ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
+
+            count += sizeof(ushort);
+            count += sizeof(ushort);
+            this.playerId = BitConverter.ToInt64(s.Slice(count, s.Length - count));
+            count += sizeof(long);
+
+            // string 
+            ushort nameLen = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+            count += sizeof(ushort);
+            this.name = Encoding.Unicode.GetString(s.Slice(count, nameLen));
+        }
+
+        public override ArraySegment<byte> Write()
+        {
+            ArraySegment<byte> segment = SendBufferHelper.Open(4096);
+
+            ushort count = 0;
+            bool success = true;
+
+            Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
+
+            count += sizeof(ushort);
+            success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.packetId);
+            count += sizeof(ushort);
+            success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.playerId);
+            count += sizeof(long);
+
+            // string
+            ushort nameLen = (ushort)Encoding.Unicode.GetBytes(this.name, 0, this.name.Length, segment.Array, segment.Offset + count + sizeof(ushort));
+            success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), nameLen);
+            count += sizeof(ushort);
+            count += nameLen;
+
+            success &= BitConverter.TryWriteBytes(s, count);
+
+            if (success == false)
+                return null;
+
+            return SendBufferHelper.Close(count);
+        }
+    }
+
+    public enum PacketID
+    {
+        PlayerInfoReq = 1,
+        PlayerInfoOk = 2,
+    }
+
+    class ServerSession : Session
     {
         public override void OnConnected(EndPoint endPoint)
         {
             Console.WriteLine($"OnConnected : {endPoint}");
-            Packet packet = new Packet() { size = 4, packetId = 7 };
+            PlayerInfoReq packet = new PlayerInfoReq() { packetId = 1001, name = "ABCD" };
 
             // 보낸다
-            for (int i = 0; i < 5; i++)
+            // for (int i = 0; i < 5; i++)
             {
-                ArraySegment<byte> openSegment = SendBufferHelper.Open(4096);
-                byte[] buffer = BitConverter.GetBytes(packet.size);
-                byte[] buffer2 = BitConverter.GetBytes(packet.packetId);
-                Array.Copy(buffer, 0, openSegment.Array, openSegment.Offset, buffer.Length);
-                Array.Copy(buffer2, 0, openSegment.Array, openSegment.Offset + buffer.Length, buffer2.Length);
-                ArraySegment<byte> sendBuff = SendBufferHelper.Close(packet.size);
-                Send(sendBuff);
+                ArraySegment<byte> s = packet.Write();
+                if (s != null)
+                    Send(s);
             }
         }
 
@@ -55,38 +158,8 @@ namespace DummyClient
         }
     }
 
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            // DNS (Domain Name System)
-            string host = Dns.GetHostName();
-            IPHostEntry ipHost = Dns.GetHostEntry(host);
-            IPAddress ipAddr = ipHost.AddressList[0];
-            IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
-
-            Connector connector = new Connector();
-
-            connector.Conncect(endPoint, () => { return new GameSession(); });
-
-            while (true)
-            {
-                try
-                {
-
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.ToString());
-                }
-
-                Thread.Sleep(1000);
-            }
-        }
-    }
 }
 
-Server.Program.cs
 
 using System;
 using System.Collections.Generic;
@@ -99,13 +172,83 @@ using ServerCore;
 
 namespace Server
 {
-    class Packet
+    public abstract class Packet
     {
         public ushort size;
         public ushort packetId;
+
+        public abstract ArraySegment<byte> Write();
+        public abstract void Read(ArraySegment<byte> s);
     }
 
-    class GameSession : PacketSession
+    class PlayerInfoReq : Packet
+    {
+        public long playerId;
+        public string name;
+
+        public PlayerInfoReq()
+        {
+            this.packetId = (ushort)PacketID.PlayerInfoReq;
+        }
+
+        public override void Read(ArraySegment<byte> segment)
+        {
+            ushort count = 0;
+
+            ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
+
+            count += sizeof(ushort);
+            count += sizeof(ushort);
+            this.playerId = BitConverter.ToInt64(s.Slice(count, s.Length - count));
+            count += sizeof(long);
+
+            // string 
+            ushort nameLen = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+            count += sizeof(ushort);
+            this.name = Encoding.Unicode.GetString(s.Slice(count, nameLen));
+        }
+
+        public override ArraySegment<byte> Write()
+        {
+            ArraySegment<byte> segment = SendBufferHelper.Open(4096);
+
+            ushort count = 0;
+            bool success = true;
+
+            Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
+
+            count += sizeof(ushort);
+            success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.packetId);
+            count += sizeof(ushort);
+            success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.playerId);
+            count += sizeof(long);
+
+            // string
+            // C++은 0x00 00으로 끝나니까 알 수 있었는데 C#은 그렇지않다.
+            // string의 lnegth를 구해서 byte 배얼로 구한다.
+            ushort nameLen = (ushort)Encoding.Unicode.GetByteCount(this.name);
+            success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), nameLen);
+            count += sizeof(ushort);
+            Array.Copy(Encoding.Unicode.GetBytes(this.name), 0, segment.Array, count, nameLen);
+            count += nameLen;
+
+            success &= BitConverter.TryWriteBytes(s, count);
+
+            if (success == false)
+                return null;
+
+            return SendBufferHelper.Close(count);
+        }
+    }
+
+    public enum PacketID
+    {
+        PlayerInfoReq = 1,
+        PlayerInfoOk = 2,
+    }
+
+
+    class ClinetSession : PacketSession
     {
         public override void OnConnected(EndPoint endPoint)
         {
@@ -130,9 +273,25 @@ namespace Server
 
         public override void OnRecvPacket(ArraySegment<byte> buffer)
         {
+            ushort count = 0;
+
             ushort size = BitConverter.ToUInt16(buffer.Array, buffer.Offset);
-            ushort id = BitConverter.ToUInt16(buffer.Array, buffer.Offset + 2);
-            Console.WriteLine($"RecvPacketId : {id}, Size {size}");
+            count += 2;
+            ushort id = BitConverter.ToUInt16(buffer.Array, buffer.Offset + count);
+            count += 2;
+
+            switch ((PacketID)id)
+            {
+                case PacketID.PlayerInfoReq:
+                    {
+                        PlayerInfoReq p = new PlayerInfoReq();
+                        p.Read(buffer);
+                        Console.WriteLine($"PlayerInfoReq : {p.playerId} {p.name}");
+                    }
+                    break;
+            }
+            Console.WriteLine("error");
+            //Console.WriteLine($"RecvPacketId : {id}, Size {size}");
         }
 
         public override void OnDisConnected(EndPoint endPoint)
@@ -146,6 +305,19 @@ namespace Server
             Console.WriteLine($"Transferred byte : {numOfBytes}");
         }
     }
+}
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using ServerCore;
+
+namespace Server
+{
+
 
     class Program
     {
@@ -162,7 +334,7 @@ namespace Server
 
             // www.rookiss.com -> 127.1.2.3
             /* 서버 */
-            _listener.Init(endPoint, () => { return new GameSession(); });
+            _listener.Init(endPoint, () => { return new ClinetSession(); });
             Console.WriteLine("Listening...");
 
             while (true)
@@ -174,9 +346,6 @@ namespace Server
         }
     }
 }
-
-ServerCore.Connector.cs
-
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -230,9 +399,6 @@ namespace ServerCore
         }
     }
 }
-
-ServerCore.Listener.cs
-
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -293,9 +459,6 @@ namespace ServerCore
         }
     }
 }
-
-ServerCore.RecvBuffer.cs
-
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -363,9 +526,6 @@ namespace ServerCore
         }
     }
 }
-
-ServerCore.SendBuffer.cs
-
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -430,9 +590,6 @@ namespace ServerCore
         }
     }
 }
-
-ServerCore.Session.cs
-
 using System;
 using System.Collections.Generic;
 using System.Net;
