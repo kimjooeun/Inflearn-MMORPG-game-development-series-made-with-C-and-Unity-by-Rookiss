@@ -88,8 +88,4 @@
     <None Include="Part1\Part1_Section7_9.Nullable.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Part4\" />
-  </ItemGroup>
-
 </Project>
