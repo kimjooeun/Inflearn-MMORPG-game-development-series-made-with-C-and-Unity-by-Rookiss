@@ -106,8 +106,6 @@ class {0} : IPacket
 	public void Read(ArraySegment<byte> segment)
 	{{
 		ushort count = 0;
-
-		ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
 		count += sizeof(ushort);
 		count += sizeof(ushort);
 		{2}
@@ -117,17 +115,14 @@ class {0} : IPacket
 	{{
 		ArraySegment<byte> segment = SendBufferHelper.Open(4096);
 		ushort count = 0;
-		bool success = true;
-
-		Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
 
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), (ushort)PacketID.{0});
+		Array.Copy(BitConverter.GetBytes((ushort)PacketID.{0}), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		{3}
-		success &= BitConverter.TryWriteBytes(s, count);
-		if (success == false)
-			return null;
+
+		Array.Copy(BitConverter.GetBytes(count), 0, segment.Array, segment.Offset, sizeof(ushort));
+
 		return SendBufferHelper.Close(count);
 	}}
 }}
@@ -147,12 +142,12 @@ class {0} : IPacket
 {{
 	{2}
 
-	public void Read(ReadOnlySpan<byte> s, ref ushort count)
+	public void Read(ArraySegment<byte> segment, ref ushort count)
 	{{
 		{3}
 	}}
 
-	public bool Write(Span<byte> s, ref ushort count)
+	public bool Write(ArraySegment<byte> segment, ref ushort count)
 	{{
 		bool success = true;
 		{4}
@@ -165,7 +160,7 @@ public List<{0}> {1}s = new List<{0}>();";
 		// {1} To~ 변수 형식
 		// {2} 변수 형식
 		public static string readFormat =
-@"this.{0} = BitConverter.{1}(s.Slice(count, s.Length - count));
+@"this.{0} = BitConverter.{1}(segment.Array, segment.Offset + count);
 count += sizeof({2});";
 
 		// {0} 변수 이름
@@ -176,16 +171,16 @@ count += sizeof({1});";
 
 		// {0} 변수 이름
 		public static string readStringFormat =
-@"ushort {0}Len = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+@"ushort {0}Len = BitConverter.ToUInt16(segment.Array, segment.Offset + count);
 count += sizeof(ushort);
-this.{0} = Encoding.Unicode.GetString(s.Slice(count, {0}Len));
+this.{0} = Encoding.Unicode.GetString(segment.Array, segment.Offset + count, {0}Len);
 count += {0}Len;";
 
 		// {0} 리스트 이름 [대문자]
 		// {1} 리스트 이름 [소문자]
 		public static string readListFormat =
 @"this.{1}s.Clear();
-ushort {1}Len = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+ushort {1}Len = BitConverter.ToUInt16(segment.Array, segment.Offset + count);
 count += sizeof(ushort);
 for (int i = 0; i < {1}Len; i++)
 {{
@@ -197,7 +192,7 @@ for (int i = 0; i < {1}Len; i++)
 		// {0} 변수 이름
 		// {1} 변수 형식
 		public static string writeFormat =
-@"success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.{0});
+@"Array.Copy(BitConverter.GetBytes(this.{0}), 0, segment.Array, segment.Offset + count, sizeof({1}));
 count += sizeof({1});";
 
 		// {0} 변수 이름
@@ -209,24 +204,24 @@ count += sizeof({1});";
 		// {0} 변수 이름
 		public static string writeStringFormat =
 @"ushort {0}Len = (ushort)Encoding.Unicode.GetBytes(this.{0}, 0, this.{0}.Length, segment.Array, segment.Offset + count + sizeof(ushort));
-success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), {0}Len);
+Array.Copy(BitConverter.GetBytes({0}Len), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 count += sizeof(ushort);
 count += {0}Len;";
 
 		// {0} 리스트 이름 [대문자]
 		// {1} 리스트 이름 [소문자]
 		public static string writeListFormat =
-@"success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), (ushort)this.{1}s.Count);
+@"Array.Copy(BitConverter.GetBytes((ushort)this.{1}s.Count), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 count += sizeof(ushort);
 foreach ({0} {1} in this.{1}s)
-	success &= {1}.Write(s, ref count);";
+	{1}.Write(segment, ref count);";
 
 	}
 }
 <? xml version = "1.0" encoding = "utf-8" ?>
    < PDL >
    
-	 < packet name = "C_Chat" >
+	 < packet name = "C_chat" >
    
 	   < string name = "chat" />
 	
@@ -511,7 +506,7 @@ using ServerCore;
 
 public enum PacketID
 {
-	C_Chat = 1,
+	C_chat = 1,
 	S_Test = 2,
 
 }
@@ -524,22 +519,20 @@ interface IPacket
 }
 
 
-class C_Chat : IPacket
+class C_chat : IPacket
 {
 	public string chat;
 
-	public ushort Protocol { get { return (ushort)PacketID.C_Chat; } }
+	public ushort Protocol { get { return (ushort)PacketID.C_chat; } }
 
 	public void Read(ArraySegment<byte> segment)
 	{
 		ushort count = 0;
-
-		ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
 		count += sizeof(ushort);
 		count += sizeof(ushort);
-		ushort chatLen = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+		ushort chatLen = BitConverter.ToUInt16(segment.Array, segment.Offset + count);
 		count += sizeof(ushort);
-		this.chat = Encoding.Unicode.GetString(s.Slice(count, chatLen));
+		this.chat = Encoding.Unicode.GetString(segment.Array, segment.Offset + count, chatLen);
 		count += chatLen;
 	}
 
@@ -547,20 +540,17 @@ class C_Chat : IPacket
 	{
 		ArraySegment<byte> segment = SendBufferHelper.Open(4096);
 		ushort count = 0;
-		bool success = true;
-
-		Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
 
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), (ushort)PacketID.C_Chat);
+		Array.Copy(BitConverter.GetBytes((ushort)PacketID.C_chat), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		ushort chatLen = (ushort)Encoding.Unicode.GetBytes(this.chat, 0, this.chat.Length, segment.Array, segment.Offset + count + sizeof(ushort));
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), chatLen);
+		Array.Copy(BitConverter.GetBytes(chatLen), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		count += chatLen;
-		success &= BitConverter.TryWriteBytes(s, count);
-		if (success == false)
-			return null;
+
+		Array.Copy(BitConverter.GetBytes(count), 0, segment.Array, segment.Offset, sizeof(ushort));
+
 		return SendBufferHelper.Close(count);
 	}
 }
@@ -575,15 +565,13 @@ class S_Test : IPacket
 	public void Read(ArraySegment<byte> segment)
 	{
 		ushort count = 0;
-
-		ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
 		count += sizeof(ushort);
 		count += sizeof(ushort);
-		this.playerId = BitConverter.ToInt32(s.Slice(count, s.Length - count));
+		this.playerId = BitConverter.ToInt32(segment.Array, segment.Offset + count);
 		count += sizeof(int);
-		ushort chatLen = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+		ushort chatLen = BitConverter.ToUInt16(segment.Array, segment.Offset + count);
 		count += sizeof(ushort);
-		this.chat = Encoding.Unicode.GetString(s.Slice(count, chatLen));
+		this.chat = Encoding.Unicode.GetString(segment.Array, segment.Offset + count, chatLen);
 		count += chatLen;
 	}
 
@@ -591,22 +579,19 @@ class S_Test : IPacket
 	{
 		ArraySegment<byte> segment = SendBufferHelper.Open(4096);
 		ushort count = 0;
-		bool success = true;
-
-		Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
 
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), (ushort)PacketID.S_Test);
+		Array.Copy(BitConverter.GetBytes((ushort)PacketID.S_Test), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.playerId);
+		Array.Copy(BitConverter.GetBytes(this.playerId), 0, segment.Array, segment.Offset + count, sizeof(int));
 		count += sizeof(int);
 		ushort chatLen = (ushort)Encoding.Unicode.GetBytes(this.chat, 0, this.chat.Length, segment.Array, segment.Offset + count + sizeof(ushort));
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), chatLen);
+		Array.Copy(BitConverter.GetBytes(chatLen), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		count += chatLen;
-		success &= BitConverter.TryWriteBytes(s, count);
-		if (success == false)
-			return null;
+
+		Array.Copy(BitConverter.GetBytes(count), 0, segment.Array, segment.Offset, sizeof(ushort));
+
 		return SendBufferHelper.Close(count);
 	}
 }
@@ -624,8 +609,8 @@ class PacketHandler
 		S_Test chatPacket = packet as S_Test;
 		ServerSession serverSession = session as ServerSession;
 
-		if (chatPacket.playerId == 1)
-			Console.WriteLine(chatPacket.chat);
+		// if (chatPacket.playerId == 1)
+		//Console.WriteLine(chatPacket.chat);
 	}
 }
 using ServerCore;
@@ -720,7 +705,7 @@ namespace DummyClient
 			{
 				foreach (ServerSession session in _sessions)
 				{
-					C_Chat chatPacket = new C_Chat();
+					C_chat chatPacket = new C_chat();
 					chatPacket.chat = $"Hello Server !";
 					ArraySegment<byte> segment = chatPacket.Write();
 
@@ -748,7 +733,7 @@ using ServerCore;
 
 public enum PacketID
 {
-	C_Chat = 1,
+	C_chat = 1,
 	S_Test = 2,
 
 }
@@ -761,22 +746,20 @@ interface IPacket
 }
 
 
-class C_Chat : IPacket
+class C_chat : IPacket
 {
 	public string chat;
 
-	public ushort Protocol { get { return (ushort)PacketID.C_Chat; } }
+	public ushort Protocol { get { return (ushort)PacketID.C_chat; } }
 
 	public void Read(ArraySegment<byte> segment)
 	{
 		ushort count = 0;
-
-		ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
 		count += sizeof(ushort);
 		count += sizeof(ushort);
-		ushort chatLen = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+		ushort chatLen = BitConverter.ToUInt16(segment.Array, segment.Offset + count);
 		count += sizeof(ushort);
-		this.chat = Encoding.Unicode.GetString(s.Slice(count, chatLen));
+		this.chat = Encoding.Unicode.GetString(segment.Array, segment.Offset + count, chatLen);
 		count += chatLen;
 	}
 
@@ -784,20 +767,17 @@ class C_Chat : IPacket
 	{
 		ArraySegment<byte> segment = SendBufferHelper.Open(4096);
 		ushort count = 0;
-		bool success = true;
-
-		Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
 
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), (ushort)PacketID.C_Chat);
+		Array.Copy(BitConverter.GetBytes((ushort)PacketID.C_chat), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		ushort chatLen = (ushort)Encoding.Unicode.GetBytes(this.chat, 0, this.chat.Length, segment.Array, segment.Offset + count + sizeof(ushort));
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), chatLen);
+		Array.Copy(BitConverter.GetBytes(chatLen), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		count += chatLen;
-		success &= BitConverter.TryWriteBytes(s, count);
-		if (success == false)
-			return null;
+
+		Array.Copy(BitConverter.GetBytes(count), 0, segment.Array, segment.Offset, sizeof(ushort));
+
 		return SendBufferHelper.Close(count);
 	}
 }
@@ -812,15 +792,13 @@ class S_Test : IPacket
 	public void Read(ArraySegment<byte> segment)
 	{
 		ushort count = 0;
-
-		ReadOnlySpan<byte> s = new ReadOnlySpan<byte>(segment.Array, segment.Offset, segment.Count);
 		count += sizeof(ushort);
 		count += sizeof(ushort);
-		this.playerId = BitConverter.ToInt32(s.Slice(count, s.Length - count));
+		this.playerId = BitConverter.ToInt32(segment.Array, segment.Offset + count);
 		count += sizeof(int);
-		ushort chatLen = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
+		ushort chatLen = BitConverter.ToUInt16(segment.Array, segment.Offset + count);
 		count += sizeof(ushort);
-		this.chat = Encoding.Unicode.GetString(s.Slice(count, chatLen));
+		this.chat = Encoding.Unicode.GetString(segment.Array, segment.Offset + count, chatLen);
 		count += chatLen;
 	}
 
@@ -828,22 +806,19 @@ class S_Test : IPacket
 	{
 		ArraySegment<byte> segment = SendBufferHelper.Open(4096);
 		ushort count = 0;
-		bool success = true;
-
-		Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
 
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), (ushort)PacketID.S_Test);
+		Array.Copy(BitConverter.GetBytes((ushort)PacketID.S_Test), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), this.playerId);
+		Array.Copy(BitConverter.GetBytes(this.playerId), 0, segment.Array, segment.Offset + count, sizeof(int));
 		count += sizeof(int);
 		ushort chatLen = (ushort)Encoding.Unicode.GetBytes(this.chat, 0, this.chat.Length, segment.Array, segment.Offset + count + sizeof(ushort));
-		success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), chatLen);
+		Array.Copy(BitConverter.GetBytes(chatLen), 0, segment.Array, segment.Offset + count, sizeof(ushort));
 		count += sizeof(ushort);
 		count += chatLen;
-		success &= BitConverter.TryWriteBytes(s, count);
-		if (success == false)
-			return null;
+
+		Array.Copy(BitConverter.GetBytes(count), 0, segment.Array, segment.Offset, sizeof(ushort));
+
 		return SendBufferHelper.Close(count);
 	}
 }
@@ -858,16 +833,18 @@ class PacketHandler
 {
 	public static void C_ChatHandler(PacketSession session, IPacket packet)
 	{
-		C_Chat chatPacket = packet as C_Chat;
+		C_chat chatPacket = packet as C_chat;
 		ClientSession clientSession = session as ClientSession;
 
 		if (clientSession.Room == null)
 			return;
 
-		clientSession.Room.Broadcast(clientSession, chatPacket.chat);
+		GameRoom room = clientSession.Room;
+		room.Push(
+			() => room.Broadcast(clientSession, chatPacket.chat)
+		);
 	}
-}
-using ServerCore;
+}using ServerCore;
 using System;
 using System.Collections.Generic;
 
@@ -888,8 +865,8 @@ class PacketManager
 
 	public void Register()
 	{
-		_onRecv.Add((ushort)PacketID.C_Chat, MakePacket<C_Chat>);
-		_handler.Add((ushort)PacketID.C_Chat, PacketHandler.C_ChatHandler);
+		_onRecv.Add((ushort)PacketID.C_chat, MakePacket<C_chat>);
+		_handler.Add((ushort)PacketID.C_chat, PacketHandler.C_ChatHandler);
 
 	}
 
@@ -935,7 +912,7 @@ namespace Server
 		{
 			Console.WriteLine($"OnConnected : {endPoint}");
 
-			Program.Room.Enter(this);
+			Program.Room.Push(() => Program.Room.Enter(this));
 		}
 
 		public override void OnRecvPacket(ArraySegment<byte> buffer)
@@ -948,7 +925,8 @@ namespace Server
 			SessionManager.Instance.Remove(this);
 			if (Room != null)
 			{
-				Room.Leave(this);
+				GameRoom room = Room;
+				room.Push(() => room.Leave(this));
 				Room = null;
 			}
 			Console.WriteLine($"OnDisconnected : {endPoint}");
@@ -956,7 +934,7 @@ namespace Server
 
 		public override void OnSend(int numOfBytes)
 		{
-			Console.WriteLine($"Transferred bytes: {numOfBytes}");
+			//Console.WriteLine($"Transferred bytes: {numOfBytes}");
 		}
 	}
 }
@@ -1010,46 +988,119 @@ namespace Server
 		}
 	}
 }
+using ServerCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Server
 {
-	class GameRoom
+	class GameRoom : IJobQueue
 	{
 		List<ClientSession> _sessions = new List<ClientSession>();
-		object _lock = new object();
+		JobQueue _jobQueue = new JobQueue();
+		List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
+
+		public void Push(Action job)
+		{
+			_jobQueue.Push(job);
+		}
+
+		public void Flush()
+		{
+			// (O) = n^2
+			foreach (ClientSession s in _sessions)
+				s.Send(_pendingList);
+
+			Console.WriteLine($"Flushed {_pendingList.Count} items");
+			_pendingList.Clear();
+		}
 
 		public void Broadcast(ClientSession session, string chat)
 		{
 			// 멀티쓰레드의 영역이긴 하지만 넘겨주는 인자만 오기 떄문에 상관이 없다.
 			S_Test packet = new S_Test();
 			packet.playerId = session.SessionId;
-			packet.chat = chat;
+			packet.chat = $"{chat} I am {packet.playerId}";
 			ArraySegment<byte> segment = packet.Write();
 
-			lock (_lock)
-			{
-				foreach (ClientSession s in _sessions)
-					s.Send(segment);
-			}
+			_pendingList.Add(segment); ;
 		}
 
 		public void Enter(ClientSession session)
 		{
-			lock (_lock)
-			{
-				_sessions.Add(session);
-				session.Room = this;
-			}
+			_sessions.Add(session);
+			session.Room = this;
 		}
 
 		public void Leave(ClientSession session)
 		{
+			_sessions.Remove(session);
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
+using System.Text;
+using ServerCore;
+
+namespace Server
+{
+	struct JobTimerElem : IComparable<JobTimerElem>
+	{
+		public int execTick; // 실행 시간
+		public Action action;
+
+		public int CompareTo(JobTimerElem other)
+		{
+			// 작은애가 먼저 튀어나와야 한다.
+			return other.execTick - execTick;
+		}
+	}
+
+	// JobTimer를 더 최적화한다면?
+	// 시간이 임박한 에들은 리스트로 관리한다
+	// [20ms][20ms][20ms][20ms][20ms][][][][][][][][][][][][][][][]    
+	class JobTimer
+	{
+		PrioityQueue<JobTimerElem> _pq = new PrioityQueue<JobTimerElem>();
+		object _lock = new object();
+
+		public static JobTimer Instance { get; } = new JobTimer();
+
+		public void Push(Action action, int tickAfter = 0)
+		{
+			JobTimerElem job;
+			job.execTick = System.Environment.TickCount + tickAfter;
+			job.action = action;
+
 			lock (_lock)
 			{
-				_sessions.Remove(session);
+				_pq.Push(job);
+			}
+		}
+
+		public void Flush()
+		{
+			while (true)
+			{
+				int now = System.Environment.TickCount;
+
+				JobTimerElem job;
+
+				lock (_lock)
+				{
+					if (_pq.Count == 0)
+						break;  // while 문을 나가는 break 문.
+
+					job = _pq.Pekk();
+					if (job.execTick > now)
+						break;
+
+					_pq.Pop();
+				}
+
+				job.action.Invoke();
 			}
 		}
 	}
@@ -1070,6 +1121,12 @@ namespace Server
 		static Listener _listener = new Listener();
 		public static GameRoom Room = new GameRoom();
 
+		static void FlushRoom()
+		{
+			Room.Push(() => Room.Flush());
+			JobTimer.Instance.Push(FlushRoom, 250);
+		}
+
 		static void Main(string[] args)
 		{
 			// DNS (Domain Name System)
@@ -1081,9 +1138,14 @@ namespace Server
 			_listener.Init(endPoint, () => { return SessionManager.Instance.Generate(); });
 			Console.WriteLine("Listening...");
 
+			//FlushRoom();
+			JobTimer.Instance.Push(FlushRoom);
+
 			while (true)
 			{
-				;
+				// TickCount를 While문에서 관리하지말고
+				// 중앙에서 관리하면 깔끔하다.
+				JobTimer.Instance.Flush();
 			}
 		}
 	}
@@ -1145,6 +1207,63 @@ namespace ServerCore
 }
 using System;
 using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+{
+	public interface IJobQueue
+	{
+		void Push(Action job);
+	}
+
+	public class JobQueue : IJobQueue
+	{
+		Queue<Action> _jobQueue = new Queue<Action>();
+		object _lock = new object();
+		bool _flush = false;
+
+		public void Push(Action job)
+		{
+			bool flush = false;
+			lock (_lock)
+			{
+				_jobQueue.Enqueue(job);
+				if (_flush == false)
+					flush = _flush = true;
+			}
+
+			if (flush)
+				Flush();
+		}
+
+		void Flush()
+		{
+			while (true)
+			{
+				Action action = Pop();
+				if (action == null)
+					return;
+
+				action.Invoke();
+			}
+		}
+
+		Action Pop()
+		{
+			lock (_lock)
+			{
+				if (_jobQueue.Count == 0)
+				{
+					_flush = false;
+					return null;
+				}
+				return _jobQueue.Dequeue();
+			}
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -1156,7 +1275,7 @@ namespace ServerCore
 		Socket _listenSocket;
 		Func<Session> _sessionFactory;
 
-		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory)
+		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory, int register = 10, int backlog = 100)
 		{
 			_listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			_sessionFactory += sessionFactory;
@@ -1166,11 +1285,14 @@ namespace ServerCore
 
 			// 영업 시작
 			// backlog : 최대 대기수
-			_listenSocket.Listen(10);
+			_listenSocket.Listen(backlog);
 
-			SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-			args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
-			RegisterAccept(args);
+			for (int i = 0; i < register; i++)
+			{
+				SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+				args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
+				RegisterAccept(args);
+			}
 		}
 
 		void RegisterAccept(SocketAsyncEventArgs args)
@@ -1194,6 +1316,102 @@ namespace ServerCore
 				Console.WriteLine(args.SocketError.ToString());
 
 			RegisterAccept(args);
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+{
+	public class PrioityQueue<T> where T : IComparable<T>
+	{
+		List<T> _heap = new List<T>();
+
+		public int Count { get { return _heap.Count; } }
+
+		public void Push(T data)
+		{
+			// 힙의 맨 끝에 새로운 데이터를 삽입한다.
+			_heap.Add(data);
+
+			int now = _heap.Count - 1;
+			// 도장깨기를 시작
+			while (now > 0)
+			{
+				// 도장깨기를 시도
+				int next = (now - 1) / 2;
+
+				if (_heap[now].CompareTo(_heap[next]) < 0)
+				{
+					break; // 실패
+				}
+
+				// 두 값을 교체한다
+				T temp = _heap[now];
+				_heap[now] = _heap[next];
+				_heap[next] = temp;
+				// 값을 교체할때 대각선의 법칙을 기억하면 편하다.
+
+				// 검사 위치를 이동한다
+				now = next;
+			}
+		}
+
+		public T Pop()
+		{
+			//반환할 데이터를 따로 저장
+			T ret = _heap[0];
+
+			// 마지막 데이터를 루트로 이동시킨다.
+			int lastIndex = _heap.Count - 1;    // 마지막 데이터를 lastindex에 저장
+			_heap[0] = _heap[lastIndex];        // lastindex를 맨 위로 이동
+			_heap.RemoveAt(lastIndex);          // removeat으로 데이ㅏ터 삭제
+			lastIndex--;                        // 데이터의 크기를 줄여준다.
+
+			// 올린 값을 역으로 도장깨기를 한다
+			// 좌우로 비교할 때 큰값이 있는 곳으로 내려간다
+			int now = 0;
+			while (true)
+			{
+				int left = 2 * now + 1;
+				int right = 2 * now + 2;
+				// 주의! left와 right가 값의 범위를 벗어날 수도 있음
+
+				int next = now;
+				// 왼족 값이 현재 값보다 크면 왼쪽으로 이동하는 로직
+				if (left <= lastIndex && _heap[next].CompareTo(_heap[left]) < 0)
+				{
+					next = left;
+				}
+				// 오른족 값이 현재 값(왼쪽 이동 포함 값)보다 크면 오른쪽으로 이동하는 로직
+				if (right <= lastIndex && _heap[next].CompareTo(_heap[right]) < 0)
+				{
+					next = right;
+				}
+				// 왼쪽/오른쪽 모두 현재 값보다 작으면 종료
+				if (next == now)
+				{
+					break;
+				}
+
+				// 두 값을 교체한다.
+				T temp = _heap[now];
+				_heap[now] = _heap[next];
+				_heap[next] = temp;
+
+				// 검사 위치를 이동한다
+				now = next;
+			}
+			return ret;
+		}
+
+		public T Pekk()
+		{
+			if (_heap.Count == 0)
+				return default(T);
+			return _heap[0];
 		}
 	}
 }
@@ -1275,7 +1493,7 @@ namespace ServerCore
 	{
 		public static ThreadLocal<SendBuffer> CurrentBuffer = new ThreadLocal<SendBuffer>(() => { return null; });
 
-		public static int ChunkSize { get; set; } = 4096 * 100;
+		public static int ChunkSize { get; set; } = 65535 * 100;
 
 		public static ArraySegment<byte> Open(int reserveSize)
 		{
@@ -1340,6 +1558,7 @@ namespace ServerCore
 		public sealed override int OnRecv(ArraySegment<byte> buffer)
 		{
 			int processLen = 0;
+			int packetCount = 0;
 
 			while (true)
 			{
@@ -1354,10 +1573,14 @@ namespace ServerCore
 
 				// 여기까지 왔으면 패킷 조립 가능
 				OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
+				packetCount++;
 
 				processLen += dataSize;
 				buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
 			}
+
+			if (packetCount > 1)
+				Console.WriteLine($"패킷 모아 보내가 : {packetCount}");
 
 			return processLen;
 		}
@@ -1370,7 +1593,7 @@ namespace ServerCore
 		Socket _socket;
 		int _disconnected = 0;
 
-		RecvBuffer _recvBuffer = new RecvBuffer(1024);
+		RecvBuffer _recvBuffer = new RecvBuffer(65535);
 
 		object _lock = new object();
 		Queue<ArraySegment<byte>> _sendQueue = new Queue<ArraySegment<byte>>();
@@ -1400,6 +1623,20 @@ namespace ServerCore
 			_sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
 
 			RegisterRecv();
+		}
+		public void Send(List<ArraySegment<byte>> sendBuffList)
+		{
+			if (sendBuffList.Count == 0)
+				return;
+
+			lock (_lock)
+			{
+				foreach (ArraySegment<byte> sendBuff in sendBuffList)
+					_sendQueue.Enqueue(sendBuff);
+
+				if (_pendingList.Count == 0)
+					RegisterSend();
+			}
 		}
 
 		public void Send(ArraySegment<byte> sendBuff)

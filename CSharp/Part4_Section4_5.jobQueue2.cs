@@ -624,8 +624,8 @@ class PacketHandler
 		S_Test chatPacket = packet as S_Test;
 		ServerSession serverSession = session as ServerSession;
 
-		if (chatPacket.playerId == 1)
-			Console.WriteLine(chatPacket.chat);
+		// if (chatPacket.playerId == 1)
+		Console.WriteLine(chatPacket.chat);
 	}
 }
 using ServerCore;
@@ -651,7 +651,7 @@ namespace DummyClient
 
 			connector.Connect(endPoint,
 				() => { return SessionManager.Instance.Generate(); },
-				10);
+				500);
 
 			while (true)
 			{
@@ -864,10 +864,12 @@ class PacketHandler
 		if (clientSession.Room == null)
 			return;
 
-		clientSession.Room.Broadcast(clientSession, chatPacket.chat);
+		GameRoom room = clientSession.Room;
+		room.Push(
+			() => room.Broadcast(clientSession, chatPacket.chat)
+		);
 	}
-}
-using ServerCore;
+}using ServerCore;
 using System;
 using System.Collections.Generic;
 
@@ -935,7 +937,7 @@ namespace Server
 		{
 			Console.WriteLine($"OnConnected : {endPoint}");
 
-			Program.Room.Enter(this);
+			Program.Room.Push(() => Program.Room.Enter(this));
 		}
 
 		public override void OnRecvPacket(ArraySegment<byte> buffer)
@@ -948,7 +950,8 @@ namespace Server
 			SessionManager.Instance.Remove(this);
 			if (Room != null)
 			{
-				Room.Leave(this);
+				GameRoom room = Room;
+				room.Push(() => room.Leave(this));
 				Room = null;
 			}
 			Console.WriteLine($"OnDisconnected : {endPoint}");
@@ -956,7 +959,7 @@ namespace Server
 
 		public override void OnSend(int numOfBytes)
 		{
-			Console.WriteLine($"Transferred bytes: {numOfBytes}");
+			//Console.WriteLine($"Transferred bytes: {numOfBytes}");
 		}
 	}
 }
@@ -1010,47 +1013,45 @@ namespace Server
 		}
 	}
 }
+using ServerCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Server
 {
-	class GameRoom
+	class GameRoom : IJobQueue
 	{
 		List<ClientSession> _sessions = new List<ClientSession>();
-		object _lock = new object();
+		JobQueue _jobQueue = new JobQueue();
+
+		public void Push(Action job)
+		{
+			_jobQueue.Push(job);
+		}
 
 		public void Broadcast(ClientSession session, string chat)
 		{
 			// 멀티쓰레드의 영역이긴 하지만 넘겨주는 인자만 오기 떄문에 상관이 없다.
 			S_Test packet = new S_Test();
 			packet.playerId = session.SessionId;
-			packet.chat = chat;
+			packet.chat = $"{chat} I am {packet.playerId}";
 			ArraySegment<byte> segment = packet.Write();
 
-			lock (_lock)
-			{
-				foreach (ClientSession s in _sessions)
-					s.Send(segment);
-			}
+			// (N)n^2
+			foreach (ClientSession s in _sessions)
+				s.Send(segment);
 		}
 
 		public void Enter(ClientSession session)
 		{
-			lock (_lock)
-			{
-				_sessions.Add(session);
-				session.Room = this;
-			}
+			_sessions.Add(session);
+			session.Room = this;
 		}
 
 		public void Leave(ClientSession session)
 		{
-			lock (_lock)
-			{
-				_sessions.Remove(session);
-			}
+			_sessions.Remove(session);
 		}
 	}
 }
@@ -1145,6 +1146,63 @@ namespace ServerCore
 }
 using System;
 using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+{
+	public interface IJobQueue
+	{
+		void Push(Action job);
+	}
+
+	public class JobQueue : IJobQueue
+	{
+		Queue<Action> _jobQueue = new Queue<Action>();
+		object _lock = new object();
+		bool _flush = false;
+
+		public void Push(Action job)
+		{
+			bool flush = false;
+			lock (_lock)
+			{
+				_jobQueue.Enqueue(job);
+				if (_flush == false)
+					flush = _flush = true;
+			}
+
+			if (flush)
+				Flush();
+		}
+
+		void Flush()
+		{
+			while (true)
+			{
+				Action action = Pop();
+				if (action == null)
+					return;
+
+				action.Invoke();
+			}
+		}
+
+		Action Pop()
+		{
+			lock (_lock)
+			{
+				if (_jobQueue.Count == 0)
+				{
+					_flush = false;
+					return null;
+				}
+				return _jobQueue.Dequeue();
+			}
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -1156,7 +1214,7 @@ namespace ServerCore
 		Socket _listenSocket;
 		Func<Session> _sessionFactory;
 
-		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory)
+		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory, int register = 10, int backlog = 100)
 		{
 			_listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			_sessionFactory += sessionFactory;
@@ -1166,11 +1224,14 @@ namespace ServerCore
 
 			// 영업 시작
 			// backlog : 최대 대기수
-			_listenSocket.Listen(10);
+			_listenSocket.Listen(backlog);
 
-			SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-			args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
-			RegisterAccept(args);
+			for (int i = 0; i < register; i++)
+			{
+				SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+				args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
+				RegisterAccept(args);
+			}
 		}
 
 		void RegisterAccept(SocketAsyncEventArgs args)

@@ -624,8 +624,8 @@ class PacketHandler
 		S_Test chatPacket = packet as S_Test;
 		ServerSession serverSession = session as ServerSession;
 
-		if (chatPacket.playerId == 1)
-			Console.WriteLine(chatPacket.chat);
+		// if (chatPacket.playerId == 1)
+		//Console.WriteLine(chatPacket.chat);
 	}
 }
 using ServerCore;
@@ -651,7 +651,7 @@ namespace DummyClient
 
 			connector.Connect(endPoint,
 				() => { return SessionManager.Instance.Generate(); },
-				10);
+				500);
 
 			while (true)
 			{
@@ -864,10 +864,12 @@ class PacketHandler
 		if (clientSession.Room == null)
 			return;
 
-		clientSession.Room.Broadcast(clientSession, chatPacket.chat);
+		GameRoom room = clientSession.Room;
+		room.Push(
+			() => room.Broadcast(clientSession, chatPacket.chat)
+		);
 	}
-}
-using ServerCore;
+}using ServerCore;
 using System;
 using System.Collections.Generic;
 
@@ -935,7 +937,7 @@ namespace Server
 		{
 			Console.WriteLine($"OnConnected : {endPoint}");
 
-			Program.Room.Enter(this);
+			Program.Room.Push(() => Program.Room.Enter(this));
 		}
 
 		public override void OnRecvPacket(ArraySegment<byte> buffer)
@@ -948,7 +950,8 @@ namespace Server
 			SessionManager.Instance.Remove(this);
 			if (Room != null)
 			{
-				Room.Leave(this);
+				GameRoom room = Room;
+				room.Push(() => room.Leave(this));
 				Room = null;
 			}
 			Console.WriteLine($"OnDisconnected : {endPoint}");
@@ -956,7 +959,7 @@ namespace Server
 
 		public override void OnSend(int numOfBytes)
 		{
-			Console.WriteLine($"Transferred bytes: {numOfBytes}");
+			//Console.WriteLine($"Transferred bytes: {numOfBytes}");
 		}
 	}
 }
@@ -1010,47 +1013,54 @@ namespace Server
 		}
 	}
 }
+using ServerCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Server
 {
-	class GameRoom
+	class GameRoom : IJobQueue
 	{
 		List<ClientSession> _sessions = new List<ClientSession>();
-		object _lock = new object();
+		JobQueue _jobQueue = new JobQueue();
+		List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
+
+		public void Push(Action job)
+		{
+			_jobQueue.Push(job);
+		}
+
+		public void Flush()
+		{
+			// (O) = n^2
+			foreach (ClientSession s in _sessions)
+				s.Send(_pendingList);
+
+			Console.WriteLine($"Flushed {_pendingList.Count} items");
+			_pendingList.Clear();
+		}
 
 		public void Broadcast(ClientSession session, string chat)
 		{
 			// 멀티쓰레드의 영역이긴 하지만 넘겨주는 인자만 오기 떄문에 상관이 없다.
 			S_Test packet = new S_Test();
 			packet.playerId = session.SessionId;
-			packet.chat = chat;
+			packet.chat = $"{chat} I am {packet.playerId}";
 			ArraySegment<byte> segment = packet.Write();
 
-			lock (_lock)
-			{
-				foreach (ClientSession s in _sessions)
-					s.Send(segment);
-			}
+			_pendingList.Add(segment); ;
 		}
 
 		public void Enter(ClientSession session)
 		{
-			lock (_lock)
-			{
-				_sessions.Add(session);
-				session.Room = this;
-			}
+			_sessions.Add(session);
+			session.Room = this;
 		}
 
 		public void Leave(ClientSession session)
 		{
-			lock (_lock)
-			{
-				_sessions.Remove(session);
-			}
+			_sessions.Remove(session);
 		}
 	}
 }
@@ -1083,7 +1093,8 @@ namespace Server
 
 			while (true)
 			{
-				;
+				Room.Push(() => Room.Flush());
+				Thread.Sleep(250);
 			}
 		}
 	}
@@ -1145,6 +1156,63 @@ namespace ServerCore
 }
 using System;
 using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+{
+	public interface IJobQueue
+	{
+		void Push(Action job);
+	}
+
+	public class JobQueue : IJobQueue
+	{
+		Queue<Action> _jobQueue = new Queue<Action>();
+		object _lock = new object();
+		bool _flush = false;
+
+		public void Push(Action job)
+		{
+			bool flush = false;
+			lock (_lock)
+			{
+				_jobQueue.Enqueue(job);
+				if (_flush == false)
+					flush = _flush = true;
+			}
+
+			if (flush)
+				Flush();
+		}
+
+		void Flush()
+		{
+			while (true)
+			{
+				Action action = Pop();
+				if (action == null)
+					return;
+
+				action.Invoke();
+			}
+		}
+
+		Action Pop()
+		{
+			lock (_lock)
+			{
+				if (_jobQueue.Count == 0)
+				{
+					_flush = false;
+					return null;
+				}
+				return _jobQueue.Dequeue();
+			}
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -1156,7 +1224,7 @@ namespace ServerCore
 		Socket _listenSocket;
 		Func<Session> _sessionFactory;
 
-		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory)
+		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory, int register = 10, int backlog = 100)
 		{
 			_listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			_sessionFactory += sessionFactory;
@@ -1166,11 +1234,14 @@ namespace ServerCore
 
 			// 영업 시작
 			// backlog : 최대 대기수
-			_listenSocket.Listen(10);
+			_listenSocket.Listen(backlog);
 
-			SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-			args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
-			RegisterAccept(args);
+			for (int i = 0; i < register; i++)
+			{
+				SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+				args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
+				RegisterAccept(args);
+			}
 		}
 
 		void RegisterAccept(SocketAsyncEventArgs args)
@@ -1275,7 +1346,7 @@ namespace ServerCore
 	{
 		public static ThreadLocal<SendBuffer> CurrentBuffer = new ThreadLocal<SendBuffer>(() => { return null; });
 
-		public static int ChunkSize { get; set; } = 4096 * 100;
+		public static int ChunkSize { get; set; } = 65535 * 100;
 
 		public static ArraySegment<byte> Open(int reserveSize)
 		{
@@ -1340,6 +1411,7 @@ namespace ServerCore
 		public sealed override int OnRecv(ArraySegment<byte> buffer)
 		{
 			int processLen = 0;
+			int packetCount = 0;
 
 			while (true)
 			{
@@ -1354,10 +1426,14 @@ namespace ServerCore
 
 				// 여기까지 왔으면 패킷 조립 가능
 				OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
+				packetCount++;
 
 				processLen += dataSize;
 				buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
 			}
+
+			if (packetCount > 1)
+				Console.WriteLine($"패킷 모아 보내가 : {packetCount}");
 
 			return processLen;
 		}
@@ -1370,7 +1446,7 @@ namespace ServerCore
 		Socket _socket;
 		int _disconnected = 0;
 
-		RecvBuffer _recvBuffer = new RecvBuffer(1024);
+		RecvBuffer _recvBuffer = new RecvBuffer(65535);
 
 		object _lock = new object();
 		Queue<ArraySegment<byte>> _sendQueue = new Queue<ArraySegment<byte>>();
@@ -1400,6 +1476,20 @@ namespace ServerCore
 			_sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
 
 			RegisterRecv();
+		}
+		public void Send(List<ArraySegment<byte>> sendBuffList)
+		{
+			if (sendBuffList.Count == 0)
+				return;
+
+			lock (_lock)
+			{
+				foreach (ArraySegment<byte> sendBuff in sendBuffList)
+					_sendQueue.Enqueue(sendBuff);
+
+				if (_pendingList.Count == 0)
+					RegisterSend();
+			}
 		}
 
 		public void Send(ArraySegment<byte> sendBuff)

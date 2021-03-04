@@ -226,7 +226,7 @@ foreach ({0} {1} in this.{1}s)
 <? xml version = "1.0" encoding = "utf-8" ?>
    < PDL >
    
-	 < packet name = "C_Chat" >
+	 < packet name = "C_chat" >
    
 	   < string name = "chat" />
 	
@@ -624,8 +624,8 @@ class PacketHandler
 		S_Test chatPacket = packet as S_Test;
 		ServerSession serverSession = session as ServerSession;
 
-		if (chatPacket.playerId == 1)
-			Console.WriteLine(chatPacket.chat);
+		// if (chatPacket.playerId == 1)
+		//Console.WriteLine(chatPacket.chat);
 	}
 }
 using ServerCore;
@@ -651,7 +651,7 @@ namespace DummyClient
 
 			connector.Connect(endPoint,
 				() => { return SessionManager.Instance.Generate(); },
-				10);
+				500);
 
 			while (true)
 			{
@@ -864,10 +864,12 @@ class PacketHandler
 		if (clientSession.Room == null)
 			return;
 
-		clientSession.Room.Broadcast(clientSession, chatPacket.chat);
+		GameRoom room = clientSession.Room;
+		room.Push(
+			() => room.Broadcast(clientSession, chatPacket.chat)
+		);
 	}
-}
-using ServerCore;
+}using ServerCore;
 using System;
 using System.Collections.Generic;
 
@@ -935,7 +937,7 @@ namespace Server
 		{
 			Console.WriteLine($"OnConnected : {endPoint}");
 
-			Program.Room.Enter(this);
+			Program.Room.Push(() => Program.Room.Enter(this));
 		}
 
 		public override void OnRecvPacket(ArraySegment<byte> buffer)
@@ -948,7 +950,8 @@ namespace Server
 			SessionManager.Instance.Remove(this);
 			if (Room != null)
 			{
-				Room.Leave(this);
+				GameRoom room = Room;
+				room.Push(() => room.Leave(this));
 				Room = null;
 			}
 			Console.WriteLine($"OnDisconnected : {endPoint}");
@@ -956,7 +959,7 @@ namespace Server
 
 		public override void OnSend(int numOfBytes)
 		{
-			Console.WriteLine($"Transferred bytes: {numOfBytes}");
+			//Console.WriteLine($"Transferred bytes: {numOfBytes}");
 		}
 	}
 }
@@ -1016,40 +1019,112 @@ using System.Text;
 
 namespace Server
 {
-	class GameRoom
+	class SessionManager
 	{
-		List<ClientSession> _sessions = new List<ClientSession>();
+		static SessionManager _session = new SessionManager();
+		public static SessionManager Instance { get { return _session; } }
+
+		int _sessionId = 0;
+		Dictionary<int, ClientSession> _sessions = new Dictionary<int, ClientSession>();
 		object _lock = new object();
 
-		public void Broadcast(ClientSession session, string chat)
+		public ClientSession Generate()
 		{
-			// 멀티쓰레드의 영역이긴 하지만 넘겨주는 인자만 오기 떄문에 상관이 없다.
-			S_Test packet = new S_Test();
-			packet.playerId = session.SessionId;
-			packet.chat = chat;
-			ArraySegment<byte> segment = packet.Write();
-
 			lock (_lock)
 			{
-				foreach (ClientSession s in _sessions)
-					s.Send(segment);
+				int sessionId = ++_sessionId;
+
+				ClientSession session = new ClientSession();
+				session.SessionId = sessionId;
+				_sessions.Add(sessionId, session);
+
+				Console.WriteLine($"Connected : {sessionId}");
+
+				return session;
 			}
 		}
 
-		public void Enter(ClientSession session)
+		public ClientSession Find(int id)
 		{
 			lock (_lock)
 			{
-				_sessions.Add(session);
-				session.Room = this;
+				ClientSession session = null;
+				_sessions.TryGetValue(id, out session);
+				return session;
 			}
 		}
 
-		public void Leave(ClientSession session)
+		public void Remove(ClientSession session)
 		{
 			lock (_lock)
 			{
-				_sessions.Remove(session);
+				_sessions.Remove(session.SessionId);
+			}
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
+using System.Text;
+using ServerCore;
+
+namespace Server
+{
+	struct JobTimerElem : IComparable<JobTimerElem>
+	{
+		public int execTick; // 실행 시간
+		public Action action;
+
+		public int CompareTo(JobTimerElem other)
+		{
+			// 작은애가 먼저 튀어나와야 한다.
+			return other.execTick - execTick;
+		}
+	}
+
+	// JobTimer를 더 최적화한다면?
+	// 시간이 임박한 에들은 리스트로 관리한다
+	// [20ms][20ms][20ms][20ms][20ms][][][][][][][][][][][][][][][]    
+	class JobTimer
+	{
+		PrioityQueue<JobTimerElem> _pq = new PrioityQueue<JobTimerElem>();
+		object _lock = new object();
+
+		public static JobTimer Instance { get; } = new JobTimer();
+
+		public void Push(Action action, int tickAfter = 0)
+		{
+			JobTimerElem job;
+			job.execTick = System.Environment.TickCount + tickAfter;
+			job.action = action;
+
+			lock (_lock)
+			{
+				_pq.Push(job);
+			}
+		}
+
+		public void Flush()
+		{
+			while (true)
+			{
+				int now = System.Environment.TickCount;
+
+				JobTimerElem job;
+
+				lock (_lock)
+				{
+					if (_pq.Count == 0)
+						break;  // while 문을 나가는 break 문.
+
+					job = _pq.Pekk();
+					if (job.execTick > now)
+						break;
+
+					_pq.Pop();
+				}
+
+				job.action.Invoke();
 			}
 		}
 	}
@@ -1070,6 +1145,12 @@ namespace Server
 		static Listener _listener = new Listener();
 		public static GameRoom Room = new GameRoom();
 
+		static void FlushRoom()
+		{
+			Room.Push(() => Room.Flush());
+			JobTimer.Instance.Push(FlushRoom, 250);
+		}
+
 		static void Main(string[] args)
 		{
 			// DNS (Domain Name System)
@@ -1081,394 +1162,633 @@ namespace Server
 			_listener.Init(endPoint, () => { return SessionManager.Instance.Generate(); });
 			Console.WriteLine("Listening...");
 
-			while (true)
-			{
-				;
-			}
-		}
-	}
-}
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-
-namespace ServerCore
-{
-	public class Connector
-	{
-		Func<Session> _sessionFactory;
-
-		public void Connect(IPEndPoint endPoint, Func<Session> sessionFactory, int count = 1)
-		{
-			for (int i = 0; i < count; i++)
-			{
-				// 휴대폰 설정
-				Socket socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-				_sessionFactory = sessionFactory;
-
-				SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-				args.Completed += OnConnectCompleted;
-				args.RemoteEndPoint = endPoint;
-				args.UserToken = socket;
-
-				RegisterConnect(args);
-			}
-		}
-
-		void RegisterConnect(SocketAsyncEventArgs args)
-		{
-			Socket socket = args.UserToken as Socket;
-			if (socket == null)
-				return;
-
-			bool pending = socket.ConnectAsync(args);
-			if (pending == false)
-				OnConnectCompleted(null, args);
-		}
-
-		void OnConnectCompleted(object sender, SocketAsyncEventArgs args)
-		{
-			if (args.SocketError == SocketError.Success)
-			{
-				Session session = _sessionFactory.Invoke();
-				session.Start(args.ConnectSocket);
-				session.OnConnected(args.RemoteEndPoint);
-			}
-			else
-			{
-				Console.WriteLine($"OnConnectCompleted Fail: {args.SocketError}");
-			}
-		}
-	}
-}
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-
-namespace ServerCore
-{
-	public class Listener
-	{
-		Socket _listenSocket;
-		Func<Session> _sessionFactory;
-
-		public void Init(IPEndPoint endPoint, Func<Session> sessionFactory)
-		{
-			_listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-			_sessionFactory += sessionFactory;
-
-			// 문지기 교육
-			_listenSocket.Bind(endPoint);
-
-			// 영업 시작
-			// backlog : 최대 대기수
-			_listenSocket.Listen(10);
-
-			SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-			args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
-			RegisterAccept(args);
-		}
-
-		void RegisterAccept(SocketAsyncEventArgs args)
-		{
-			args.AcceptSocket = null;
-
-			bool pending = _listenSocket.AcceptAsync(args);
-			if (pending == false)
-				OnAcceptCompleted(null, args);
-		}
-
-		void OnAcceptCompleted(object sender, SocketAsyncEventArgs args)
-		{
-			if (args.SocketError == SocketError.Success)
-			{
-				Session session = _sessionFactory.Invoke();
-				session.Start(args.AcceptSocket);
-				session.OnConnected(args.AcceptSocket.RemoteEndPoint);
-			}
-			else
-				Console.WriteLine(args.SocketError.ToString());
-
-			RegisterAccept(args);
-		}
-	}
-}
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace ServerCore
-{
-	public class RecvBuffer
-	{
-		// [r][][w][][][][][][][]
-		ArraySegment<byte> _buffer;
-		int _readPos;
-		int _writePos;
-
-		public RecvBuffer(int bufferSize)
-		{
-			_buffer = new ArraySegment<byte>(new byte[bufferSize], 0, bufferSize);
-		}
-
-		public int DataSize { get { return _writePos - _readPos; } }
-		public int FreeSize { get { return _buffer.Count - _writePos; } }
-
-		public ArraySegment<byte> ReadSegment
-		{
-			get { return new ArraySegment<byte>(_buffer.Array, _buffer.Offset + _readPos, DataSize); }
-		}
-
-		public ArraySegment<byte> WriteSegment
-		{
-			get { return new ArraySegment<byte>(_buffer.Array, _buffer.Offset + _writePos, FreeSize); }
-		}
-
-		public void Clean()
-		{
-			int dataSize = DataSize;
-			if (dataSize == 0)
-			{
-				// 남은 데이터가 없으면 복사하지 않고 커서 위치만 리셋
-				_readPos = _writePos = 0;
-			}
-			else
-			{
-				// 남은 찌끄레기가 있으면 시작 위치로 복사
-				Array.Copy(_buffer.Array, _buffer.Offset + _readPos, _buffer.Array, _buffer.Offset, dataSize);
-				_readPos = 0;
-				_writePos = dataSize;
-			}
-		}
-
-		public bool OnRead(int numOfBytes)
-		{
-			if (numOfBytes > DataSize)
-				return false;
-
-			_readPos += numOfBytes;
-			return true;
-		}
-
-		public bool OnWrite(int numOfBytes)
-		{
-			if (numOfBytes > FreeSize)
-				return false;
-
-			_writePos += numOfBytes;
-			return true;
-		}
-	}
-}
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-
-namespace ServerCore
-{
-	public class SendBufferHelper
-	{
-		public static ThreadLocal<SendBuffer> CurrentBuffer = new ThreadLocal<SendBuffer>(() => { return null; });
-
-		public static int ChunkSize { get; set; } = 4096 * 100;
-
-		public static ArraySegment<byte> Open(int reserveSize)
-		{
-			if (CurrentBuffer.Value == null)
-				CurrentBuffer.Value = new SendBuffer(ChunkSize);
-
-			if (CurrentBuffer.Value.FreeSize < reserveSize)
-				CurrentBuffer.Value = new SendBuffer(ChunkSize);
-
-			return CurrentBuffer.Value.Open(reserveSize);
-		}
-
-		public static ArraySegment<byte> Close(int usedSize)
-		{
-			return CurrentBuffer.Value.Close(usedSize);
-		}
-	}
-
-	public class SendBuffer
-	{
-		// [][][][][][][][][u][]
-		byte[] _buffer;
-		int _usedSize = 0;
-
-		public int FreeSize { get { return _buffer.Length - _usedSize; } }
-
-		public SendBuffer(int chunkSize)
-		{
-			_buffer = new byte[chunkSize];
-		}
-
-		public ArraySegment<byte> Open(int reserveSize)
-		{
-			if (reserveSize > FreeSize)
-				return null;
-
-			return new ArraySegment<byte>(_buffer, _usedSize, reserveSize);
-		}
-
-		public ArraySegment<byte> Close(int usedSize)
-		{
-			ArraySegment<byte> segment = new ArraySegment<byte>(_buffer, _usedSize, usedSize);
-			_usedSize += usedSize;
-			return segment;
-		}
-	}
-}
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-
-namespace ServerCore
-{
-	public abstract class PacketSession : Session
-	{
-		public static readonly int HeaderSize = 2;
-
-		// [size(2)][packetId(2)][ ... ][size(2)][packetId(2)][ ... ]
-		public sealed override int OnRecv(ArraySegment<byte> buffer)
-		{
-			int processLen = 0;
+			//FlushRoom();
+			JobTimer.Instance.Push(FlushRoom);
 
 			while (true)
 			{
-				// 최소한 헤더는 파싱할 수 있는지 확인
-				if (buffer.Count < HeaderSize)
-					break;
+				// TickCount를 While문에서 관리하지말고
+				// 중앙에서 관리하면 깔끔하다.
+				using System;
+				using System.Collections.Generic;
+				using System.Net;
+				using System.Net.Sockets;
+				using System.Text;
 
-				// 패킷이 완전체로 도착했는지 확인
-				ushort dataSize = BitConverter.ToUInt16(buffer.Array, buffer.Offset);
-				if (buffer.Count < dataSize)
-					break;
-
-				// 여기까지 왔으면 패킷 조립 가능
-				OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
-
-				processLen += dataSize;
-				buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
-			}
-
-			return processLen;
-		}
-
-		public abstract void OnRecvPacket(ArraySegment<byte> buffer);
-	}
-
-	public abstract class Session
+namespace ServerCore
 	{
-		Socket _socket;
-		int _disconnected = 0;
-
-		RecvBuffer _recvBuffer = new RecvBuffer(1024);
-
-		object _lock = new object();
-		Queue<ArraySegment<byte>> _sendQueue = new Queue<ArraySegment<byte>>();
-		List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
-		SocketAsyncEventArgs _sendArgs = new SocketAsyncEventArgs();
-		SocketAsyncEventArgs _recvArgs = new SocketAsyncEventArgs();
-
-		public abstract void OnConnected(EndPoint endPoint);
-		public abstract int OnRecv(ArraySegment<byte> buffer);
-		public abstract void OnSend(int numOfBytes);
-		public abstract void OnDisconnected(EndPoint endPoint);
-
-		void Clear()
+		public class Connector
 		{
-			lock (_lock)
+			Func<Session> _sessionFactory;
+
+			public void Connect(IPEndPoint endPoint, Func<Session> sessionFactory, int count = 1)
 			{
-				_sendQueue.Clear();
-				_pendingList.Clear();
+				for (int i = 0; i < count; i++)
+				{
+					// 휴대폰 설정
+					Socket socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+					_sessionFactory = sessionFactory;
+
+					SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+					args.Completed += OnConnectCompleted;
+					args.RemoteEndPoint = endPoint;
+					args.UserToken = socket;
+
+					RegisterConnect(args);
+				}
 			}
-		}
 
-		public void Start(Socket socket)
-		{
-			_socket = socket;
-
-			_recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
-			_sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
-
-			RegisterRecv();
-		}
-
-		public void Send(ArraySegment<byte> sendBuff)
-		{
-			lock (_lock)
+			void RegisterConnect(SocketAsyncEventArgs args)
 			{
-				_sendQueue.Enqueue(sendBuff);
-				if (_pendingList.Count == 0)
-					RegisterSend();
-			}
-		}
+				Socket socket = args.UserToken as Socket;
+				if (socket == null)
+					return;
 
-		public void Disconnect()
-		{
-			if (Interlocked.Exchange(ref _disconnected, 1) == 1)
-				return;
-
-			OnDisconnected(_socket.RemoteEndPoint);
-			_socket.Shutdown(SocketShutdown.Both);
-			_socket.Close();
-			Clear();
-		}
-
-		#region 네트워크 통신
-
-		void RegisterSend()
-		{
-			if (_disconnected == 1)
-				return;
-
-			while (_sendQueue.Count > 0)
-			{
-				ArraySegment<byte> buff = _sendQueue.Dequeue();
-				_pendingList.Add(buff);
-			}
-			_sendArgs.BufferList = _pendingList;
-
-			try
-			{
-				bool pending = _socket.SendAsync(_sendArgs);
+				bool pending = socket.ConnectAsync(args);
 				if (pending == false)
-					OnSendCompleted(null, _sendArgs);
-			}
-			catch (Exception e)
-			{
-				Console.WriteLine($"RegisterSend Failed {e}");
+					OnConnectCompleted(null, args);
 			}
 
+			void OnConnectCompleted(object sender, SocketAsyncEventArgs args)
+			{
+				if (args.SocketError == SocketError.Success)
+				{
+					Session session = _sessionFactory.Invoke();
+					session.Start(args.ConnectSocket);
+					session.OnConnected(args.RemoteEndPoint);
+				}
+				else
+				{
+					Console.WriteLine($"OnConnectCompleted Fail: {args.SocketError}");
+				}
+			}
+		}
+	}
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+	{
+		public interface IJobQueue
+		{
+			void Push(Action job);
 		}
 
-		void OnSendCompleted(object sender, SocketAsyncEventArgs args)
+		public class JobQueue : IJobQueue
 		{
-			lock (_lock)
+			Queue<Action> _jobQueue = new Queue<Action>();
+			object _lock = new object();
+			bool _flush = false;
+
+			public void Push(Action job)
+			{
+				bool flush = false;
+				lock (_lock)
+				{
+					_jobQueue.Enqueue(job);
+					if (_flush == false)
+						flush = _flush = true;
+				}
+
+				if (flush)
+					Flush();
+			}
+
+			void Flush()
+			{
+				while (true)
+				{
+					Action action = Pop();
+					if (action == null)
+						return;
+
+					action.Invoke();
+				}
+			}
+
+			Action Pop()
+			{
+				lock (_lock)
+				{
+					if (_jobQueue.Count == 0)
+					{
+						_flush = false;
+						return null;
+					}
+					return _jobQueue.Dequeue();
+				}
+			}
+		}
+	}
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+
+namespace ServerCore
+	{
+		public class Listener
+		{
+			Socket _listenSocket;
+			Func<Session> _sessionFactory;
+
+			public void Init(IPEndPoint endPoint, Func<Session> sessionFactory, int register = 10, int backlog = 100)
+			{
+				_listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+				_sessionFactory += sessionFactory;
+
+				// 문지기 교육
+				_listenSocket.Bind(endPoint);
+
+				// 영업 시작
+				// backlog : 최대 대기수
+				_listenSocket.Listen(backlog);
+
+				for (int i = 0; i < register; i++)
+				{
+					SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+					args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted);
+					RegisterAccept(args);
+				}
+			}
+
+			void RegisterAccept(SocketAsyncEventArgs args)
+			{
+				args.AcceptSocket = null;
+
+				bool pending = _listenSocket.AcceptAsync(args);
+				if (pending == false)
+					OnAcceptCompleted(null, args);
+			}
+
+			void OnAcceptCompleted(object sender, SocketAsyncEventArgs args)
+			{
+				if (args.SocketError == SocketError.Success)
+				{
+					Session session = _sessionFactory.Invoke();
+					session.Start(args.AcceptSocket);
+					session.OnConnected(args.AcceptSocket.RemoteEndPoint);
+				}
+				else
+					Console.WriteLine(args.SocketError.ToString());
+
+				RegisterAccept(args);
+			}
+		}
+	}
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+	{
+		public class PrioityQueue<T> where T : IComparable<T>
+		{
+			List<T> _heap = new List<T>();
+
+			public int Count { get { return _heap.Count; } }
+
+			public void Push(T data)
+			{
+				// 힙의 맨 끝에 새로운 데이터를 삽입한다.
+				_heap.Add(data);
+
+				int now = _heap.Count - 1;
+				// 도장깨기를 시작
+				while (now > 0)
+				{
+					// 도장깨기를 시도
+					int next = (now - 1) / 2;
+
+					if (_heap[now].CompareTo(_heap[next]) < 0)
+					{
+						break; // 실패
+					}
+
+					// 두 값을 교체한다
+					T temp = _heap[now];
+					_heap[now] = _heap[next];
+					_heap[next] = temp;
+					// 값을 교체할때 대각선의 법칙을 기억하면 편하다.
+
+					// 검사 위치를 이동한다
+					now = next;
+				}
+			}
+
+			public T Pop()
+			{
+				//반환할 데이터를 따로 저장
+				T ret = _heap[0];
+
+				// 마지막 데이터를 루트로 이동시킨다.
+				int lastIndex = _heap.Count - 1;    // 마지막 데이터를 lastindex에 저장
+				_heap[0] = _heap[lastIndex];        // lastindex를 맨 위로 이동
+				_heap.RemoveAt(lastIndex);          // removeat으로 데이ㅏ터 삭제
+				lastIndex--;                        // 데이터의 크기를 줄여준다.
+
+				// 올린 값을 역으로 도장깨기를 한다
+				// 좌우로 비교할 때 큰값이 있는 곳으로 내려간다
+				int now = 0;
+				while (true)
+				{
+					int left = 2 * now + 1;
+					int right = 2 * now + 2;
+					// 주의! left와 right가 값의 범위를 벗어날 수도 있음
+
+					int next = now;
+					// 왼족 값이 현재 값보다 크면 왼쪽으로 이동하는 로직
+					if (left <= lastIndex && _heap[next].CompareTo(_heap[left]) < 0)
+					{
+						next = left;
+					}
+					// 오른족 값이 현재 값(왼쪽 이동 포함 값)보다 크면 오른쪽으로 이동하는 로직
+					if (right <= lastIndex && _heap[next].CompareTo(_heap[right]) < 0)
+					{
+						next = right;
+					}
+					// 왼쪽/오른쪽 모두 현재 값보다 작으면 종료
+					if (next == now)
+					{
+						break;
+					}
+
+					// 두 값을 교체한다.
+					T temp = _heap[now];
+					_heap[now] = _heap[next];
+					_heap[next] = temp;
+
+					// 검사 위치를 이동한다
+					now = next;
+				}
+				return ret;
+			}
+
+			public T Pekk()
+			{
+				if (_heap.Count == 0)
+					return default(T);
+				return _heap[0];
+			}
+		}
+	}
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace ServerCore
+	{
+		public class RecvBuffer
+		{
+			// [r][][w][][][][][][][]
+			ArraySegment<byte> _buffer;
+			int _readPos;
+			int _writePos;
+
+			public RecvBuffer(int bufferSize)
+			{
+				_buffer = new ArraySegment<byte>(new byte[bufferSize], 0, bufferSize);
+			}
+
+			public int DataSize { get { return _writePos - _readPos; } }
+			public int FreeSize { get { return _buffer.Count - _writePos; } }
+
+			public ArraySegment<byte> ReadSegment
+			{
+				get { return new ArraySegment<byte>(_buffer.Array, _buffer.Offset + _readPos, DataSize); }
+			}
+
+			public ArraySegment<byte> WriteSegment
+			{
+				get { return new ArraySegment<byte>(_buffer.Array, _buffer.Offset + _writePos, FreeSize); }
+			}
+
+			public void Clean()
+			{
+				int dataSize = DataSize;
+				if (dataSize == 0)
+				{
+					// 남은 데이터가 없으면 복사하지 않고 커서 위치만 리셋
+					_readPos = _writePos = 0;
+				}
+				else
+				{
+					// 남은 찌끄레기가 있으면 시작 위치로 복사
+					Array.Copy(_buffer.Array, _buffer.Offset + _readPos, _buffer.Array, _buffer.Offset, dataSize);
+					_readPos = 0;
+					_writePos = dataSize;
+				}
+			}
+
+			public bool OnRead(int numOfBytes)
+			{
+				if (numOfBytes > DataSize)
+					return false;
+
+				_readPos += numOfBytes;
+				return true;
+			}
+
+			public bool OnWrite(int numOfBytes)
+			{
+				if (numOfBytes > FreeSize)
+					return false;
+
+				_writePos += numOfBytes;
+				return true;
+			}
+		}
+	}
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+
+namespace ServerCore
+	{
+		public class SendBufferHelper
+		{
+			public static ThreadLocal<SendBuffer> CurrentBuffer = new ThreadLocal<SendBuffer>(() => { return null; });
+
+			public static int ChunkSize { get; set; } = 65535 * 100;
+
+			public static ArraySegment<byte> Open(int reserveSize)
+			{
+				if (CurrentBuffer.Value == null)
+					CurrentBuffer.Value = new SendBuffer(ChunkSize);
+
+				if (CurrentBuffer.Value.FreeSize < reserveSize)
+					CurrentBuffer.Value = new SendBuffer(ChunkSize);
+
+				return CurrentBuffer.Value.Open(reserveSize);
+			}
+
+			public static ArraySegment<byte> Close(int usedSize)
+			{
+				return CurrentBuffer.Value.Close(usedSize);
+			}
+		}
+
+		public class SendBuffer
+		{
+			// [][][][][][][][][u][]
+			byte[] _buffer;
+			int _usedSize = 0;
+
+			public int FreeSize { get { return _buffer.Length - _usedSize; } }
+
+			public SendBuffer(int chunkSize)
+			{
+				_buffer = new byte[chunkSize];
+			}
+
+			public ArraySegment<byte> Open(int reserveSize)
+			{
+				if (reserveSize > FreeSize)
+					return null;
+
+				return new ArraySegment<byte>(_buffer, _usedSize, reserveSize);
+			}
+
+			public ArraySegment<byte> Close(int usedSize)
+			{
+				ArraySegment<byte> segment = new ArraySegment<byte>(_buffer, _usedSize, usedSize);
+				_usedSize += usedSize;
+				return segment;
+			}
+		}
+	}
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+
+namespace ServerCore
+	{
+		public abstract class PacketSession : Session
+		{
+			public static readonly int HeaderSize = 2;
+
+			// [size(2)][packetId(2)][ ... ][size(2)][packetId(2)][ ... ]
+			public sealed override int OnRecv(ArraySegment<byte> buffer)
+			{
+				int processLen = 0;
+				int packetCount = 0;
+
+				while (true)
+				{
+					// 최소한 헤더는 파싱할 수 있는지 확인
+					if (buffer.Count < HeaderSize)
+						break;
+
+					// 패킷이 완전체로 도착했는지 확인
+					ushort dataSize = BitConverter.ToUInt16(buffer.Array, buffer.Offset);
+					if (buffer.Count < dataSize)
+						break;
+
+					// 여기까지 왔으면 패킷 조립 가능
+					OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
+					packetCount++;
+
+					processLen += dataSize;
+					buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
+				}
+
+				if (packetCount > 1)
+					Console.WriteLine($"패킷 모아 보내가 : {packetCount}");
+
+				return processLen;
+			}
+
+			public abstract void OnRecvPacket(ArraySegment<byte> buffer);
+		}
+
+		public abstract class Session
+		{
+			Socket _socket;
+			int _disconnected = 0;
+
+			RecvBuffer _recvBuffer = new RecvBuffer(65535);
+
+			object _lock = new object();
+			Queue<ArraySegment<byte>> _sendQueue = new Queue<ArraySegment<byte>>();
+			List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
+			SocketAsyncEventArgs _sendArgs = new SocketAsyncEventArgs();
+			SocketAsyncEventArgs _recvArgs = new SocketAsyncEventArgs();
+
+			public abstract void OnConnected(EndPoint endPoint);
+			public abstract int OnRecv(ArraySegment<byte> buffer);
+			public abstract void OnSend(int numOfBytes);
+			public abstract void OnDisconnected(EndPoint endPoint);
+
+			void Clear()
+			{
+				lock (_lock)
+				{
+					_sendQueue.Clear();
+					_pendingList.Clear();
+				}
+			}
+
+			public void Start(Socket socket)
+			{
+				_socket = socket;
+
+				_recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
+				_sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
+
+				RegisterRecv();
+			}
+			public void Send(List<ArraySegment<byte>> sendBuffList)
+			{
+				if (sendBuffList.Count == 0)
+					return;
+
+				lock (_lock)
+				{
+					foreach (ArraySegment<byte> sendBuff in sendBuffList)
+						_sendQueue.Enqueue(sendBuff);
+
+					if (_pendingList.Count == 0)
+						RegisterSend();
+				}
+			}
+
+			public void Send(ArraySegment<byte> sendBuff)
+			{
+				lock (_lock)
+				{
+					_sendQueue.Enqueue(sendBuff);
+					if (_pendingList.Count == 0)
+						RegisterSend();
+				}
+			}
+
+			public void Disconnect()
+			{
+				if (Interlocked.Exchange(ref _disconnected, 1) == 1)
+					return;
+
+				OnDisconnected(_socket.RemoteEndPoint);
+				_socket.Shutdown(SocketShutdown.Both);
+				_socket.Close();
+				Clear();
+			}
+
+			#region 네트워크 통신
+
+			void RegisterSend()
+			{
+				if (_disconnected == 1)
+					return;
+
+				while (_sendQueue.Count > 0)
+				{
+					ArraySegment<byte> buff = _sendQueue.Dequeue();
+					_pendingList.Add(buff);
+				}
+				_sendArgs.BufferList = _pendingList;
+
+				try
+				{
+					bool pending = _socket.SendAsync(_sendArgs);
+					if (pending == false)
+						OnSendCompleted(null, _sendArgs);
+				}
+				catch (Exception e)
+				{
+					Console.WriteLine($"RegisterSend Failed {e}");
+				}
+
+			}
+
+			void OnSendCompleted(object sender, SocketAsyncEventArgs args)
+			{
+				lock (_lock)
+				{
+					if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
+					{
+						try
+						{
+							_sendArgs.BufferList = null;
+							_pendingList.Clear();
+
+							OnSend(_sendArgs.BytesTransferred);
+
+							if (_sendQueue.Count > 0)
+								RegisterSend();
+						}
+						catch (Exception e)
+						{
+							Console.WriteLine($"OnSendCompleted Failed {e}");
+						}
+					}
+					else
+					{
+						Disconnect();
+					}
+				}
+			}
+
+			void RegisterRecv()
+			{
+				if (_disconnected == 1)
+					return;
+
+				_recvBuffer.Clean();
+				ArraySegment<byte> segment = _recvBuffer.WriteSegment;
+				_recvArgs.SetBuffer(segment.Array, segment.Offset, segment.Count);
+
+				try
+				{
+					bool pending = _socket.ReceiveAsync(_recvArgs);
+					if (pending == false)
+						OnRecvCompleted(null, _recvArgs);
+				}
+				catch (Exception e)
+				{
+					Console.WriteLine($"RegisterRecv Failed {e}");
+				}
+
+			}
+
+			void OnRecvCompleted(object sender, SocketAsyncEventArgs args)
 			{
 				if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
 				{
 					try
 					{
-						_sendArgs.BufferList = null;
-						_pendingList.Clear();
+						// Write 커서 이동
+						if (_recvBuffer.OnWrite(args.BytesTransferred) == false)
+						{
+							Disconnect();
+							return;
+						}
 
-						OnSend(_sendArgs.BytesTransferred);
+						// 컨텐츠 쪽으로 데이터를 넘겨주고 얼마나 처리했는지 받는다
+						int processLen = OnRecv(_recvBuffer.ReadSegment);
+						if (processLen < 0 || _recvBuffer.DataSize < processLen)
+						{
+							Disconnect();
+							return;
+						}
 
-						if (_sendQueue.Count > 0)
-							RegisterSend();
+						// Read 커서 이동
+						if (_recvBuffer.OnRead(processLen) == false)
+						{
+							Disconnect();
+							return;
+						}
+
+						RegisterRecv();
 					}
 					catch (Exception e)
 					{
-						Console.WriteLine($"OnSendCompleted Failed {e}");
+						Console.WriteLine($"OnRecvCompleted Failed {e}");
 					}
 				}
 				else
@@ -1476,71 +1796,13 @@ namespace ServerCore
 					Disconnect();
 				}
 			}
+
+			#endregion
 		}
+	}
 
-		void RegisterRecv()
-		{
-			if (_disconnected == 1)
-				return;
-
-			_recvBuffer.Clean();
-			ArraySegment<byte> segment = _recvBuffer.WriteSegment;
-			_recvArgs.SetBuffer(segment.Array, segment.Offset, segment.Count);
-
-			try
-			{
-				bool pending = _socket.ReceiveAsync(_recvArgs);
-				if (pending == false)
-					OnRecvCompleted(null, _recvArgs);
-			}
-			catch (Exception e)
-			{
-				Console.WriteLine($"RegisterRecv Failed {e}");
-			}
-
-		}
-
-		void OnRecvCompleted(object sender, SocketAsyncEventArgs args)
-		{
-			if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
-			{
-				try
-				{
-					// Write 커서 이동
-					if (_recvBuffer.OnWrite(args.BytesTransferred) == false)
-					{
-						Disconnect();
-						return;
-					}
-
-					// 컨텐츠 쪽으로 데이터를 넘겨주고 얼마나 처리했는지 받는다
-					int processLen = OnRecv(_recvBuffer.ReadSegment);
-					if (processLen < 0 || _recvBuffer.DataSize < processLen)
-					{
-						Disconnect();
-						return;
-					}
-
-					// Read 커서 이동
-					if (_recvBuffer.OnRead(processLen) == false)
-					{
-						Disconnect();
-						return;
-					}
-
-					RegisterRecv();
-				}
-				catch (Exception e)
-				{
-					Console.WriteLine($"OnRecvCompleted Failed {e}");
-				}
-			}
-			else
-			{
-				Disconnect();
+	JobTimer.Instance.Flush();
 			}
 		}
-
-		#endregion
 	}
 }
