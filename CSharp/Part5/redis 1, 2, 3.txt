@@ -1,0 +1,44 @@
+1) 문자열
+
+set [key] [value]
+get [key]
+append
+incr
+decr
+mset
+mget
+
+어떤식으로 응용하나?
+ttl [keys]
+expire [key] [seconds]
+----------------------
+ID [ ] > 	WebServer() <-> DB[sessionToken (클럽에서 팔찌를 주듯이)]
+	예)Rdis[shung:asdf1234]
+	GameServer() 
+---------------------------------------
+2) 셋 (중복을 허용하지 않는 집합)
+합집합 교집합 차집합
+sadd
+sinter
+srem
+사용 예제 ) 유튜브 구독 (채널/구독자)
+---------------------------------------
+3) 정렬된 셋 (셋 + 정렬)
+zadd
+zrange
+사용 예제 ) 랭킹 시스템
+---------------------------------------
+4) 리스트
+lpush
+rpush
+lrange
+lpop
+rpop
+사용 예제 ) 스택/큐
+---------------------------------------
+5) 해시
+hset
+hget
+hlen
+hdel
+hgetall
