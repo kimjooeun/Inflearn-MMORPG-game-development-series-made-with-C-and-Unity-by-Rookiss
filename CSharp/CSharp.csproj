@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="4. Hello Razor Pages.cs" />
     <Compile Remove="Part1\Part1_Section1.cs" />
     <Compile Remove="Part1\Part1_Section2.cs" />
     <Compile Remove="Part1\Part1_Section3.cs" />
@@ -63,6 +64,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Part6\4. Hello Razor Pages.cs" />
     <None Include="Part1\Part1_Section1.cs" />
     <None Include="Part1\Part1_Section2.cs" />
     <None Include="Part1\Part1_Section3.cs" />
