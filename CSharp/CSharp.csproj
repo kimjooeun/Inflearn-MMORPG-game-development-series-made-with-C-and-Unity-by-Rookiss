@@ -61,6 +61,7 @@
     <Compile Remove="Part2_Section5_1.Practice implementing a tree.cs" />
     <Compile Remove="Part2_Section5_2.Priority Queue, Finish.cs" />
     <Compile Remove="Part6\2. LINQ.cs" />
+    <Compile Remove="Part6\7. Parameter, Ref, EventCallback.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -90,6 +91,7 @@
     <None Include="Part1\Part1_Section7_8.Reflection.cs" />
     <None Include="Part1\Part1_Section7_9.Nullable.cs" />
     <None Include="Part6\2. LINQ.cs" />
+    <None Include="Part6\7. Parameter, Ref, EventCallback.cs" />
   </ItemGroup>
 
   <ItemGroup>
