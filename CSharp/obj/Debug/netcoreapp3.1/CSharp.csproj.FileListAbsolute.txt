@@ -11,7 +11,3 @@ C:\Users\zlzlf\source\repos\CSharp\CSharp\obj\Debug\netcoreapp3.1\CSharp.csproj.
 C:\Users\zlzlf\source\repos\CSharp\CSharp\obj\Debug\netcoreapp3.1\CSharp.dll
 C:\Users\zlzlf\source\repos\CSharp\CSharp\obj\Debug\netcoreapp3.1\CSharp.pdb
 C:\Users\zlzlf\source\repos\CSharp\CSharp\obj\Debug\netcoreapp3.1\CSharp.genruntimeconfig.cache
-C:\Users\zlzlf\source\repos\CSharp\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\CSharp\obj\Debug\netcoreapp3.1\CSharp.AssemblyInfoInputs.cache
-C:\Users\zlzlf\source\repos\CSharp\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\CSharp\obj\Debug\netcoreapp3.1\CSharp.AssemblyInfo.cs
-C:\Users\zlzlf\source\repos\CSharp\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\CSharp\obj\Debug\netcoreapp3.1\CSharp.csproj.CoreCompileInputs.cache
-C:\Users\zlzlf\source\repos\CSharp\Inflearn-MMORPG-game-development-series-made-with-C-and-Unity-by-Rookiss\CSharp\obj\Debug\netcoreapp3.1\CSharp.csprojAssemblyReference.cache
